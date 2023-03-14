@@ -24,24 +24,42 @@ resource "aws_apigatewayv2_route" "ws_apigateway_route_disconnect" {
 
 resource "aws_apigatewayv2_integration" "connect" {
   api_id           = aws_apigatewayv2_api.ws_apigateway.id
-  integration_type = "AWS_PROXY"
+    integration_type = "AWS_PROXY"
 
   connection_type           = "INTERNET"
+  credentials_arn           = aws_iam_role.apigw_trigger_lambda_role.arn
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = "arn:aws:apigateway:ap-southeast-1:lambda:path/2015-03-31/functions/${var.lambda_arn}/invocations"
+  integration_uri           = aws_lambda_function.lambda_connect.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
+
 }
 
 resource "aws_apigatewayv2_integration" "default" {
   api_id           = aws_apigatewayv2_api.ws_apigateway.id
-  integration_type = "MOCK"
+  integration_type = "AWS_PROXY"
+
+  connection_type           = "INTERNET"
+  credentials_arn           = aws_iam_role.apigw_trigger_lambda_role.arn
+  content_handling_strategy = "CONVERT_TO_TEXT"
+  description               = "Lambda demo"
+  integration_method        = "POST"
+  integration_uri           = aws_lambda_function.lambda_default.invoke_arn
+  passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
 resource "aws_apigatewayv2_integration" "disconnect" {
   api_id           = aws_apigatewayv2_api.ws_apigateway.id
-  integration_type = "MOCK"
+  integration_type = "AWS_PROXY"
+
+  connection_type           = "INTERNET"
+  credentials_arn           = aws_iam_role.apigw_trigger_lambda_role.arn
+  content_handling_strategy = "CONVERT_TO_TEXT"
+  description               = "Lambda demo"
+  integration_method        = "POST"
+  integration_uri           = aws_lambda_function.lambda_disconnect.invoke_arn
+  passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
 resource "aws_cloudwatch_log_group" "server_apigateway_log_group" {
