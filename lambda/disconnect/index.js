@@ -1,7 +1,11 @@
-const https = require('https')
+const async = require("async")
 
-exports.handler = async function (event) {
+defaultRegion = "ap-southeast-1"
+
+exports.handler = function (event) {
     console.log(event)
+    connectionId = event.requestContext.connectionId
+    cleanup(connectionId)
     const response = {
         statusCode: 200,
         body: JSON.stringify('Hello from Disconnect!'),
@@ -9,7 +13,87 @@ exports.handler = async function (event) {
     return response
 }
 
+function cleanup(connectionId){
+    console.log(connectionId)
+    ddb = initDynamoDB()
+    var roomId = "xxx"
+    async.waterfall([
+        function (callback) {
+            console.log("read")
+            readRecord(ddb, "PlayerTable", {
+                'connectionId': { S: connectionId }
+            }, function (err, data) {
+                if (err) {
+                    console.log(err)
+                    callback(err, null)
+                }
+                else {
+                    console.log(data)
+                    callback(null, data.Item)
+                }
+            })
+        },
+        function (data, callback) {
+            console.log("read")
+            roomId = data.roomId.S
+            readRecord(ddb, "GameSessionTable", {
+                'roomId': { S: data.roomId.S }
+            }, function (err, data) {
+                if (err) {
+                    console.log(err)
+                    callback(err, null)
+                }
+                else {
+                    console.log(data)
+                    callback(null, data.Item)
+                }
+            })
+        },
+        function (data, callback) {
+            console.log("delete")
+            ids = JSON.parse(data.connectionIds.S)
+            let keys = []
+            for (let i = 0; i < ids.length; i ++) {
+                keys.push({
+                    'connectionId': { S: ids[i] }
+                })
+            }
+            deleteRecords(ddb, "PlayerTable", keys, function (err, data) {
+                if (err) {
+                    console.log(err)
+                    callback(err, null)
+                }
+                else {
+                    console.log(data)
+                    callback(null, null)
+                }
+            })
+        },
+        function (data, callback) {
+            console.log("delete")
+            deleteRecord(ddb, "GameSessionTable", {
+                'roomId': { S: roomId }
+            }, function (err, data) {
+                if (err) {
+                    console.log(err)
+                    callback(err, null)
+                }
+                else {
+                    console.log(data)
+                    callback(null, null)
+                }
+            })
+        }
 
+    ], function (err, result) {
+        console.log(err)
+        console.log(result)
+        if (!err) {
+            console.log("updated ok")
+        }
+    })
+    console.log("finished")
+}
 
 function initDynamoDB() {
     var AWS = require('aws-sdk');
@@ -51,3 +135,18 @@ function deleteRecords(ddb, tableName, keys, callback) {
         callback(err, data)
     });
 }
+
+function readRecord(ddb, tableName, keys, callback) {
+    var params = {
+        TableName: tableName,
+        Key: keys
+    };
+
+    // Call DynamoDB to add the item to the table
+    ddb.getItem(params, function (err, data) {
+        callback(err, data)
+    });
+}
+
+
+//cleanup("CPY_9cD0yQ0CEEg=")

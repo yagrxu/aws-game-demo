@@ -4,12 +4,6 @@ resource "aws_dynamodb_table" "player-table" {
   read_capacity  = 2
   write_capacity = 2
   hash_key       = "connectionId"
-  range_key      = "roomId"
-
-  attribute {
-    name = "roomId"
-    type = "S"
-  }
 
   attribute {
     name = "connectionId"

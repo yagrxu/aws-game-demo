@@ -120,6 +120,18 @@ resource "aws_iam_policy" "lambda_policy" {
             "Effect": "Allow",
             "Action": "sqs:*",
             "Resource": "*"
+        },
+        {
+            "Sid": "DDB",
+            "Effect": "Allow",
+            "Action": "dynamodb:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "EXEC",
+            "Effect": "Allow",
+            "Action": "execute-api:ManageConnections",
+            "Resource": "*"
         }
     ]
 }

@@ -294,8 +294,7 @@ function testDynamoDB() {
         },
         function (data, callback) {
             readRecord(ddb, "PlayerTable", {
-                'connectionId': { S: '123' },
-                'roomId': { S: '1235' }
+                'connectionId': { S: '123' }
             }, function (err, data) {
                 if (err) {
                     callback(err, null)
@@ -309,8 +308,7 @@ function testDynamoDB() {
         },
         function (data, callback) {
             deleteRecord(ddb, "PlayerTable", {
-                'connectionId': { S: '123' },
-                'roomId': { S: '1235' }
+                'connectionId': { S: '123' }
             }, function (err, data) {
                 if (err) {
                     callback(err, null)
@@ -323,11 +321,9 @@ function testDynamoDB() {
         },
         function (data, callback) {
             deleteRecords(ddb, "PlayerTable", [{
-                'connectionId': { S: '123' },
-                'roomId': { S: '1234' }
+                'connectionId': { S: '123' }
             },{
-                'connectionId': { S: '124' },
-                'roomId': { S: '1234' }
+                'connectionId': { S: '124' }
             }], function (err, data) {
                 if (err) {
                     callback(err, null)
