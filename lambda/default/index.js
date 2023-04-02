@@ -1,219 +1,373 @@
-const async = require("async")
-const process = require("process")
+const async = require('async')
+const process = require('process')
+const fifoQueueUrl =
+  'https://sqs.ap-southeast-1.amazonaws.com/613477150601/game-demo.fifo'
+const defaultRegion = 'ap-southeast-1'
+const sqs = initSqs()
+const ddb = initDynamoDB()
+const enableLog = process.env['LOG_ENABLED'] || false
 
-defaultRegion = "ap-southeast-1"
-enableLog = process.env["LOG_ENABLED"] || false
 exports.handler = function (event) {
-    console.log(event)
+  console.log(event)
+  if (event['requestContext']) {
     handleAction(event)
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify('Hello from Default!'),
+  } else if (event['Records']) {
+    handleMessages(event)
+  }
+  const response = {
+    statusCode: 200,
+    body: JSON.stringify('Hello from Default!')
+  }
+  console.log('response', response)
+  return response
+}
+
+function handleAction (event) {
+  request = JSON.parse(event['body'])
+  connectionId = event['requestContext']['connectionId']
+  const domain = event.requestContext.domainName
+  const stage = event.requestContext.stage
+  if (!isNull(request) && !isNull(request['action'])) {
+    switch (request['action']) {
+      case 'create':
+        console.log('create')
+        createRoom(connectionId, request['room'])
+        break
+      case 'join':
+        console.log('join')
+        joinRoom(connectionId, request['room'], domain, stage)
+        break
+      case 'shoot':
+        console.log('shoot')
+        proceedShooting(request, connectionId, domain, stage)
+        break
+      default:
+        console.log('default')
+        break
     }
-    return response
+  } else {
+    console.log(request)
+    console.log(isNull(request))
+    console.log(isNull(request.action))
+  }
 }
 
-
-// * 玩家在创建房间的时候，建立和API Gateway的WebSocket长连接，并基于Header传输房间ID。Lambda Auth & $connect把房间ID写入DynamoDB并返回验证成功
-// * 玩家在加入房间的时候，建立和API Gateway的WebSocket长连接，并基于Header传输房间ID。Lambda Auth查询DynamoDB，如果房间存在则返回验证成功，游戏开始
-// * 游戏开始时Lambda，还需要向SQS with Delay写入延迟事件：X秒后生成蚊子，X秒后游戏结束
-
-function handleAction(event) {
-    request = JSON.parse(event["body"])
-    connectionId = event["requestContext"]["connectionId"]
-
-    if (!isNull(request) && !isNull(request["action"])) {
-        switch (request["action"]) {
-            case "create":
-                console.log("create")
-                createRoom(connectionId, request["room"])
-                break
-            case "join":
-                console.log("join")
-                const domain = event.requestContext.domainName
-                const stage = event.requestContext.stage
-                joinRoom(connectionId, request["room"], domain, stage)
-                
-                break
-            default:
-                console.log("default")
-                break
-        }
+function handleMessages (event) {
+  records = event.Records
+  for (let i = 0; i < records.length; i++) {
+    record = records[i]
+    request = JSON.parse(record['body'])
+    if (!isNull(request) && !isNull(request['action'])) {
+      switch (request['action']) {
+        case 'newtargets':
+          console.log('new targets')
+          proceedNewTargets(request.data)
+          break
+        case 'stop':
+          console.log('stop')
+          proceedStop(request.data)
+          break
+        default:
+          console.log('default')
+          break
+      }
+    } else {
+      console.log(request)
+      console.log(isNull(request))
+      console.log(isNull(request.action))
     }
-    else {
-        console.log(request)
-        console.log(isNull(request))
-        console.log(isNull(request.action))
+  }
+}
+
+function proceedStop (request) {
+  async.waterfall(
+    [
+      function (callback) {
+        sendFifoMessage(
+          sqs,
+          fifoQueueUrl,
+          JSON.stringify({
+            data: request,
+            action: 'stop'
+          }),
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          }
+        )
+      }
+    ],
+    function (err, result) {
+      console.log(err, result)
+      if (!err) {
+        console.log('proceedStop ok')
+      }
     }
+  )
 }
 
-function createRoom(connectionId, roomName) {
-    ddb = initDynamoDB()
-    async.waterfall([
-        function (callback) {
-            console.log("updatetable")
-            updateRecord(ddb, "PlayerTable", {
-                'connectionId': { S: connectionId },
-                'roomId': { S: roomName }
-            }, function (err, data) {
-                if (err) {
-                    console.log(err)
-                    callback(err, null)
-                }
-                else {
-                    console.log(data)
-                    callback(null, data)
-                }
-            })
-        }
-        ,
-        function (data, callback) {
-            console.log("updateanothertable")
-            updateRecord(ddb, "GameSessionTable", {
-                'roomId': { S: roomName },
-                'connectionIds': { S: JSON.stringify([connectionId]) }
-            }, function (err, data) {
-                if (err) {
-                    console.log(err)
-                    callback(err, null)
-                }
-                else {
-                    console.log(data)
-                    callback(null, data)
-                }
-            })
-        }
-
-    ], function (err, result) {
-        console.log(err)
-        console.log(result)
-        if (!err) {
-            console.log("updated ok")
-        }
-    })
-    console.log("finished")
+function proceedNewTargets (request) {
+  async.waterfall(
+    [
+      function (callback) {
+        sendFifoMessage(
+          sqs,
+          fifoQueueUrl,
+          JSON.stringify({
+            data: request,
+            action: 'newtargets'
+          }),
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          }
+        )
+      }
+    ],
+    function (err, result) {
+      console.log(err, result)
+      if (!err) {
+        console.log('proceedNewTargets ok')
+      }
+    }
+  )
 }
 
-function joinRoom(connectionId, roomName, domain, stage) {
-    ddb = initDynamoDB()
-    sqs = initSqs()
-    async.waterfall([
-        function (callback) {
-            updateRecord(ddb, "PlayerTable", {
-                'connectionId': { S: connectionId },
-                'roomId': { S: roomName }
-            }, function (err, data) {
-                if (err) {
-                    callback(err, null)
-                }
-                else {
-                    callback(null, data)
-                }
-            })
-        },
-        function (data, callback) {
-            readRecord(ddb, "GameSessionTable", {
-                'roomId': { S: roomName }
-            }, function (err, data) {
-                if (err) {
-                    callback(err, null)
-                }
-                else {
-                    callback(null, data.Item)
-                }
-            })
-        },
-        function (data, callback) {
-            participants = JSON.parse(data["connectionIds"]["S"])
-            participants.push(connectionId)
-            updateRecord(ddb, "GameSessionTable", {
-                'roomId': { S: roomName },
-                'connectionIds': { S: JSON.stringify(participants) },
-                'targets': {S: JSON.stringify(randomTargets())}
-            }, function (err, data) {
-                if (err) {
-                    callback(err, null)
-                }
-                else {
-                    callback(null, data)
-                }
-            })
-        },
-        function (data, callback) {
-            readRecord(ddb, "GameSessionTable", {
-                'roomId': { S: roomName }
-            }, function (err, data) {
-                if (err) {
-                    callback(err, null)
-                }
-                else {
-                    callback(null, data.Item)
-                }
-            })
-        },
-        function (data, callback) {
-            sendFifoMessage(sqs, "https://sqs.ap-southeast-1.amazonaws.com/613477150601/game-demo.fifo", JSON.stringify({
-                "data": data,
-                "domain": domain,
-                "stage": stage
-            }), callback)
-        }
-    ], function (err, result) {
-        console.log(err)
-        console.log(result)
-        if (!err) {
-            console.log("updated join ok")
-        }
-    })
+function proceedShooting (request, connectionId, domain, stage) {
+  shootInfo = request
+  shootInfo.connectionId = connectionId
+  shootInfo.domain = domain
+  shootInfo.stage = stage
+  async.waterfall(
+    [
+      function (callback) {
+        sendFifoMessage(
+          sqs,
+          fifoQueueUrl,
+          JSON.stringify(shootInfo),
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          }
+        )
+      }
+    ],
+    function (err, result) {
+      console.log(err, result)
+      if (!err) {
+        console.log('proceedShooting ok')
+      }
+    }
+  )
 }
 
-function randomTargets(){
-    return [{"x":10, "y":15, "id":"10-15"}]
+function createRoom (connectionId, roomName) {
+  async.waterfall(
+    [
+      function (callback) {
+        console.log('update player table')
+        updateRecord(
+          ddb,
+          'PlayerTable',
+          {
+            connectionId: { S: connectionId },
+            roomId: { S: roomName },
+            host: { N: '0' }
+          },
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          }
+        )
+      },
+      function (data, callback) {
+        console.log('update session table')
+        updateRecord(
+          ddb,
+          'GameSessionTable',
+          {
+            roomId: { S: roomName },
+            connectionIds: { S: JSON.stringify([connectionId]) }
+          },
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          }
+        )
+      }
+    ],
+    function (err, result) {
+      console.log(err, result)
+      if (!err) {
+        console.log('create ok')
+      }
+    }
+  )
 }
 
-function initDynamoDB() {
-    var AWS = require('aws-sdk');
-    // Set the region 
-    AWS.config.update({ region: defaultRegion });
-
-    // Create an SQS service object
-    return new AWS.DynamoDB({ apiVersion: '2012-08-10' });
+function joinRoom (connectionId, roomName, domain, stage) {
+  async.waterfall(
+    [
+      function (callback) {
+        updateRecord(
+          ddb,
+          'PlayerTable',
+          {
+            connectionId: { S: connectionId },
+            roomId: { S: roomName },
+            host: { N: '1' }
+          },
+          function (err, data) {
+            if (err) {
+              callback(err, null)
+            } else {
+              callback(null, data)
+            }
+          }
+        )
+      },
+      function (data, callback) {
+        readRecord(
+          ddb,
+          'GameSessionTable',
+          {
+            roomId: { S: roomName }
+          },
+          function (err, data) {
+            if (err) {
+              callback(err, null)
+            } else {
+              callback(null, data.Item)
+            }
+          }
+        )
+      },
+      function (data, callback) {
+        participants = JSON.parse(data['connectionIds']['S'])
+        participants.push(connectionId)
+        updateRecord(
+          ddb,
+          'GameSessionTable',
+          {
+            roomId: { S: roomName },
+            connectionIds: { S: JSON.stringify(participants) }
+          },
+          function (err, data) {
+            if (err) {
+              callback(err, null)
+            } else {
+              callback(null, data)
+            }
+          }
+        )
+      },
+      function (data, callback) {
+        readRecord(
+          ddb,
+          'GameSessionTable',
+          {
+            roomId: { S: roomName }
+          },
+          function (err, data) {
+            if (err) {
+              callback(err, null)
+            } else {
+              console.log('data', data.Item)
+              callback(null, data.Item)
+            }
+          }
+        )
+      },
+      function (data, callback) {
+        sendFifoMessage(
+          sqs,
+          fifoQueueUrl,
+          JSON.stringify({
+            data: data,
+            action: 'start',
+            domain: domain,
+            stage: stage
+          }),
+          callback
+        )
+      }
+    ],
+    function (err, result) {
+      console.log(err, result)
+      if (!err) {
+        console.log('join ok')
+      }
+    }
+  )
 }
 
-function updateRecord(ddb, tableName, content, callback) {
-    var params = {
-        TableName: tableName,
-        Item: content
-    };
+function initDynamoDB () {
+  var AWS = require('aws-sdk')
+  // Set the region
+  AWS.config.update({ region: defaultRegion })
 
-    ddb.putItem(params, function (err, data) {
-        callback(err, data)
-    });
+  // Create an SQS service object
+  return new AWS.DynamoDB({ apiVersion: '2012-08-10' })
 }
 
-function isNull (value) {  
-    return value == null
+function updateRecord (ddb, tableName, content, callback) {
+  var params = {
+    TableName: tableName,
+    Item: content
+  }
+
+  ddb.putItem(params, function (err, data) {
+    callback(err, data)
+  })
 }
 
-
-function readRecord(ddb, tableName, keys, callback) {
-    var params = {
-        TableName: tableName,
-        Key: keys
-    };
-
-    ddb.getItem(params, function (err, data) {
-        callback(err, data)
-    });
+function isNull (value) {
+  return value == null
 }
 
-function initSqs() {
-    var AWS = require('aws-sdk');
-    // Set the region 
-    AWS.config.update({ region: defaultRegion });
+function readRecord (ddb, tableName, keys, callback) {
+  var params = {
+    TableName: tableName,
+    Key: keys
+  }
 
-    // Create an SQS service object
-    return new AWS.SQS({ apiVersion: '2012-11-05' });
+  ddb.getItem(params, function (err, data) {
+    callback(err, data)
+  })
+}
+
+function initSqs () {
+  var AWS = require('aws-sdk')
+  // Set the region
+  AWS.config.update({ region: defaultRegion })
+
+  // Create an SQS service object
+  return new AWS.SQS({ apiVersion: '2012-11-05' })
 }
 
 // function sendDelayedMessage(sqs, queueUrl, message, callback) {
@@ -233,28 +387,25 @@ function initSqs() {
 //     });
 // }
 
-function sendFifoMessage(sqs, queueUrl, message, callback) {
+function sendFifoMessage (sqs, queueUrl, message, callback) {
+  var params = {
+    // Remove DelaySeconds parameter and value for FIFO queues
+    // DelaySeconds: 10,
+    MessageAttributes: {},
+    MessageBody: message,
+    MessageDeduplicationId: Math.random() * 100 + '', // Required for FIFO queues
+    MessageGroupId: 'Group1', // Required for FIFO queues
+    QueueUrl: queueUrl
+  }
 
-    var params = {
-        // Remove DelaySeconds parameter and value for FIFO queues
-        // DelaySeconds: 10,
-        MessageAttributes: {
-        },
-        MessageBody: message,
-        MessageDeduplicationId: Math.random() * 100 + "",  // Required for FIFO queues
-        MessageGroupId: "Group1",  // Required for FIFO queues
-        QueueUrl: queueUrl
-    };
-
-    sqs.sendMessage(params, function (err, data) {
-        callback(err, data)
-    });
+  sqs.sendMessage(params, function (err, data) {
+    callback(err, data)
+  })
 }
 
-// function log(...args){
-//     console.log(args)
-// }
+function log (...args) {
+  console.log(args)
+}
 
 // createRoom("12345", "yagrxu")
 // joinRoom("54321", "yagrxu")
-

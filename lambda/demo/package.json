@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "aws-sdk":"",
+    "@aws-sdk/client-apigatewaymanagementapi": "",
     "async":""
   },
   "keywords": [],
