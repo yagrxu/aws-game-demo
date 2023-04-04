@@ -1,4 +1,6 @@
 const async = require('async')
+const AWSXRay = require('aws-xray-sdk')
+const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand
@@ -79,6 +81,9 @@ function handleNewTargets (body) {
         )
       },
       function (data, callback) {
+        if (data.running.S == 'false') {
+          callback(new Error('already stopped'), null)
+        }
         console.log('update targets')
         updatedTargets = JSON.parse(data.targets.S).concat(
           JSON.parse(request.targets)
@@ -291,6 +296,9 @@ function startGame (body) {
       1: 0
     })
   }
+  body.data.running = {
+    S: 'true'
+  }
   async.waterfall(
     [
       function (callback) {
@@ -339,7 +347,7 @@ function startGame (body) {
               roomId: body.data.roomId.S
             }
           }),
-          60,
+          65,
           function (err, data) {
             if (err) {
               callback(err, null)
@@ -391,6 +399,17 @@ function stopGame (body) {
             }
           }
         )
+      },
+      function (data, callback) {
+        record = data
+        record.running.S = 'false'
+        updateRecord(ddb, 'GameSessionTable', record, function (err, data) {
+          if (err) {
+            callback(err, null)
+          } else {
+            callback(null, record)
+          }
+        })
       },
       function (data, callback) {
         playerStatus = JSON.parse(data.status.S)
@@ -668,7 +687,6 @@ function randomTargets (number) {
 }
 
 function initSqs () {
-  var AWS = require('aws-sdk')
   // Set the region
   AWS.config.update({ region: defaultRegion })
 
@@ -677,11 +695,10 @@ function initSqs () {
 }
 
 function initDynamoDB () {
-  var AWS = require('aws-sdk')
   // Set the region
   AWS.config.update({ region: defaultRegion })
 
-  // Create an SQS service object
+  // Create an DynamoDB service object
   return new AWS.DynamoDB({ apiVersion: '2012-08-10' })
 }
 

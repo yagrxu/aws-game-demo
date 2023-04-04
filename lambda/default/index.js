@@ -1,4 +1,6 @@
 const async = require('async')
+const AWSXRay = require('aws-xray-sdk')
+const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const process = require('process')
 const fifoQueueUrl =
   'https://sqs.ap-southeast-1.amazonaws.com/613477150601/game-demo.fifo'
@@ -327,7 +329,6 @@ function joinRoom (connectionId, roomName, domain, stage) {
 }
 
 function initDynamoDB () {
-  var AWS = require('aws-sdk')
   // Set the region
   AWS.config.update({ region: defaultRegion })
 
@@ -362,30 +363,12 @@ function readRecord (ddb, tableName, keys, callback) {
 }
 
 function initSqs () {
-  var AWS = require('aws-sdk')
   // Set the region
   AWS.config.update({ region: defaultRegion })
 
   // Create an SQS service object
   return new AWS.SQS({ apiVersion: '2012-11-05' })
 }
-
-// function sendDelayedMessage(sqs, queueUrl, message, callback) {
-
-//     var params = {
-//         // Remove DelaySeconds parameter and value for FIFO queues
-//         DelaySeconds: 2,
-//         MessageAttributes: {},
-//         MessageBody: message,
-//         // MessageDeduplicationId: "TheWhistler",  // Required for FIFO queues
-//         // MessageGroupId: "Group1",  // Required for FIFO queues
-//         QueueUrl: queueUrl
-//     };
-
-//     sqs.sendMessage(params, function (err, data) {
-//         callback(err, data)
-//     });
-// }
 
 function sendFifoMessage (sqs, queueUrl, message, callback) {
   var params = {

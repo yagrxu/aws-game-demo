@@ -9,7 +9,8 @@
   "dependencies": {
     "aws-sdk": "",
     "@aws-sdk/client-apigatewaymanagementapi": "",
-    "async": ""
+    "async": "",
+    "aws-xray-sdk":""
   },
   "keywords": [],
   "author": "",
