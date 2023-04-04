@@ -3,7 +3,16 @@ const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 defaultRegion = 'ap-southeast-1'
 
-exports.handler = function (event) {
+// exports.handler = async function (event) {
+//   console.log(event)
+//   const response = {
+//     statusCode: 200,
+//     body: JSON.stringify('Hello from Connect!')
+//   }
+//   return response
+// }
+
+exports.handler = function (event, context, callback) {
   console.log(event)
   connectionId = event.requestContext.connectionId
   cleanup(connectionId)
@@ -11,7 +20,8 @@ exports.handler = function (event) {
     statusCode: 200,
     body: JSON.stringify('Hello from Disconnect!')
   }
-  return response
+  console.log('response', response)
+  callback(null, response)
 }
 
 function cleanup (connectionId) {
@@ -40,6 +50,10 @@ function cleanup (connectionId) {
         )
       },
       function (data, callback) {
+        if (!data) {
+          callback(new Error('no item found'), null)
+          return
+        }
         console.log('read')
         roomId = data.roomId.S
         readRecord(
