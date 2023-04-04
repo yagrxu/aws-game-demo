@@ -9,7 +9,7 @@ const sqs = initSqs()
 const ddb = initDynamoDB()
 const enableLog = process.env['LOG_ENABLED'] || false
 
-exports.handler = function (event) {
+exports.handler = function (event, context, callback) {
   console.log(event)
   if (event['requestContext']) {
     handleAction(event)
@@ -18,10 +18,10 @@ exports.handler = function (event) {
   }
   const response = {
     statusCode: 200,
-    body: JSON.stringify('Hello from Default!')
+    body: JSON.stringify({ message: 'hello' })
   }
   console.log('response', response)
-  return response
+  callback(null, response)
 }
 
 function handleAction (event) {
