@@ -6,9 +6,12 @@ const {
   PostToConnectionCommand
 } = require('@aws-sdk/client-apigatewaymanagementapi')
 
-const delayedQueueUrl =
-  'https://sqs.ap-southeast-1.amazonaws.com/613477150601/game-demo-delay'
-const defaultRegion = 'ap-southeast-1'
+// const fifoQueueUrl = process.env.FIFO_QUEUE_URL
+const delayedQueueUrl = process.env.DELAYED_QUEUE_URL
+// const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
+const playerTableName = process.env.PLAYER_TABLE_NAME
+const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
+const defaultRegion = process.env.DEFAULT_REGION
 const targets = randomTargets(2)
 console.log(targets)
 const sqs = initSqs()
@@ -65,7 +68,7 @@ function handleNewTargets (body) {
         console.log('read targets')
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: request.roomId }
           },
@@ -89,7 +92,7 @@ function handleNewTargets (body) {
           JSON.parse(request.targets)
         )
         data.targets.S = JSON.stringify(updatedTargets)
-        updateRecord(ddb, 'GameSessionTable', data, function (err, data) {
+        updateRecord(ddb, gameSessionTableName, data, function (err, data) {
           if (err) {
             console.log(err)
             callback(err, null)
@@ -148,7 +151,7 @@ function handleShoot (body) {
         console.log('get targets')
         readRecord(
           ddb,
-          'PlayerTable',
+          playerTableName,
           {
             connectionId: { S: shootItem.connectionId }
           },
@@ -168,7 +171,7 @@ function handleShoot (body) {
         console.log(data)
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: data.roomId.S }
           },
@@ -194,7 +197,7 @@ function handleShoot (body) {
         }
         data.targets.S = JSON.stringify(existingTargets)
         dataRecord = data
-        updateRecord(ddb, 'GameSessionTable', data, function (err, data) {
+        updateRecord(ddb, gameSessionTableName, data, function (err, data) {
           if (err) {
             console.log(err)
             callback(err, null)
@@ -303,15 +306,20 @@ function startGame (body) {
     [
       function (callback) {
         console.log('update targets')
-        updateRecord(ddb, 'GameSessionTable', body.data, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data)
+        updateRecord(
+          ddb,
+          gameSessionTableName,
+          body.data,
+          function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
           }
-        })
+        )
       },
       function (data, callback) {
         sendDelayedNewTargets(
@@ -385,7 +393,7 @@ function stopGame (body) {
         console.log('get player status', body)
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: body.data.roomId }
           },
@@ -403,7 +411,7 @@ function stopGame (body) {
       function (data, callback) {
         record = data
         record.running.S = 'false'
-        updateRecord(ddb, 'GameSessionTable', record, function (err, data) {
+        updateRecord(ddb, gameSessionTableName, record, function (err, data) {
           if (err) {
             callback(err, null)
           } else {

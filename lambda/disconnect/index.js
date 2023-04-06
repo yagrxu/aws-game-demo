@@ -1,7 +1,12 @@
 const async = require('async')
 const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
-defaultRegion = 'ap-southeast-1'
+// const fifoQueueUrl = process.env.FIFO_QUEUE_URL
+// const delayedQueueUrl = process.env.DELAYED_QUEUE_URL
+// const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
+const playerTableName = process.env.PLAYER_TABLE_NAME
+const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
+const defaultRegion = process.env.DEFAULT_REGION
 
 // exports.handler = async function (event) {
 //   console.log(event)
@@ -34,7 +39,7 @@ function cleanup (connectionId) {
         console.log('read')
         readRecord(
           ddb,
-          'PlayerTable',
+          playerTableName,
           {
             connectionId: { S: connectionId }
           },
@@ -58,7 +63,7 @@ function cleanup (connectionId) {
         roomId = data.roomId.S
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: data.roomId.S }
           },
@@ -82,7 +87,7 @@ function cleanup (connectionId) {
             connectionId: { S: ids[i] }
           })
         }
-        deleteRecords(ddb, 'PlayerTable', keys, function (err, data) {
+        deleteRecords(ddb, playerTableName, keys, function (err, data) {
           if (err) {
             console.log(err)
             callback(err, null)
@@ -96,7 +101,7 @@ function cleanup (connectionId) {
         console.log('delete')
         deleteRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: roomId }
           },

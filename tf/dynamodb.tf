@@ -1,5 +1,5 @@
 resource "aws_dynamodb_table" "player-table" {
-  name           = "PlayerTable"
+  name           = var.player_table_name
   billing_mode   = "PROVISIONED"
   read_capacity  = 2
   write_capacity = 2
@@ -12,9 +12,8 @@ resource "aws_dynamodb_table" "player-table" {
 
 }
 
-
 resource "aws_dynamodb_table" "game-session-table" {
-  name           = "GameSessionTable"
+  name           = var.game_session_table_name
   billing_mode   = "PROVISIONED"
   read_capacity  = 2
   write_capacity = 2
@@ -24,5 +23,6 @@ resource "aws_dynamodb_table" "game-session-table" {
     name = "roomId"
     type = "S"
   }
-
 }
+
+

@@ -5,14 +5,14 @@ terraform {
       version = "4.57.1"
     }
     null = {
-      source = "hashicorp/null"
+      source  = "hashicorp/null"
       version = "3.2.1"
     }
   }
-  backend "s3" {
-    bucket = "yagr-tf-state-log"
-    key    = "gaming/demo/cannon-mosquito-server"
-    region = "us-east-1"
-  }
-  
+  # backend "s3" {
+  #   bucket = "yagr-tf-state-log"
+  #   key    = "gaming/demo/cannon-mosquito-server"
+  #   region = "us-east-1"
+  # }
+
 }
