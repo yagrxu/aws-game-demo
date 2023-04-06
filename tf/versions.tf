@@ -5,8 +5,12 @@ terraform {
       version = "4.57.1"
     }
     null = {
-      source = "hashicorp/null"
+      source  = "hashicorp/null"
       version = "3.2.1"
+    }
+    mongodbatlas = {
+      source  = "mongodb/mongodbatlas"
+      version = "1.8.2"
     }
   }
   backend "s3" {
@@ -14,5 +18,5 @@ terraform {
     key    = "gaming/demo/cannon-mosquito-server"
     region = "us-east-1"
   }
-  
+
 }
