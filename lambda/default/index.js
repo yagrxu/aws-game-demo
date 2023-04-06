@@ -2,9 +2,12 @@ const async = require('async')
 const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const process = require('process')
-const fifoQueueUrl =
-  'https://sqs.ap-southeast-1.amazonaws.com/613477150601/game-demo.fifo'
-const defaultRegion = 'ap-southeast-1'
+const fifoQueueUrl = process.env.FIFO_QUEUE_URL
+// const delayedQueueUrl = process.env.DELAYED_QUEUE_URL
+const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
+const playerTableName = process.env.PLAYER_TABLE_NAME
+const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
+const defaultRegion = process.env.DEFAULT_REGION
 const sqs = initSqs()
 const ddb = initDynamoDB()
 const enableLog = process.env['LOG_ENABLED'] || false
@@ -185,7 +188,7 @@ function createRoom (connectionId, roomName) {
         console.log('update player table')
         updateRecord(
           ddb,
-          'PlayerTable',
+          playerTableName,
           {
             connectionId: { S: connectionId },
             roomId: { S: roomName },
@@ -206,7 +209,7 @@ function createRoom (connectionId, roomName) {
         console.log('update session table')
         updateRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: roomName },
             connectionIds: { S: JSON.stringify([connectionId]) }
@@ -238,7 +241,7 @@ function joinRoom (connectionId, roomName, domain, stage) {
       function (callback) {
         updateRecord(
           ddb,
-          'PlayerTable',
+          playerTableName,
           {
             connectionId: { S: connectionId },
             roomId: { S: roomName },
@@ -256,7 +259,7 @@ function joinRoom (connectionId, roomName, domain, stage) {
       function (data, callback) {
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: roomName }
           },
@@ -274,7 +277,7 @@ function joinRoom (connectionId, roomName, domain, stage) {
         participants.push(connectionId)
         updateRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: roomName },
             connectionIds: { S: JSON.stringify(participants) }
@@ -291,7 +294,7 @@ function joinRoom (connectionId, roomName, domain, stage) {
       function (data, callback) {
         readRecord(
           ddb,
-          'GameSessionTable',
+          gameSessionTableName,
           {
             roomId: { S: roomName }
           },
@@ -377,7 +380,7 @@ function sendFifoMessage (sqs, queueUrl, message, callback) {
     MessageAttributes: {},
     MessageBody: message,
     MessageDeduplicationId: Math.random() * 100 + '', // Required for FIFO queues
-    MessageGroupId: 'Group1', // Required for FIFO queues
+    MessageGroupId: fifoQueueGroupId, // Required for FIFO queues
     QueueUrl: queueUrl
   }
 
