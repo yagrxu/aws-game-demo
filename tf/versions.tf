@@ -9,10 +9,10 @@ terraform {
       version = "3.2.1"
     }
   }
-  # backend "s3" {
-  #   bucket = "yagr-tf-state-log"
-  #   key    = "gaming/demo/cannon-mosquito-server"
-  #   region = "us-east-1"
-  # }
+  backend "s3" {
+    #   bucket = "yagr-tf-state-log"
+    #   key    = "gaming/demo/cannon-mosquito-server"
+    #   region = "us-east-1"
+  }
 
 }
