@@ -7,9 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "aws-sdk":"",
+    "aws-sdk": "",
     "@aws-sdk/client-apigatewaymanagementapi": "",
-    "async":""
+    "async": "",
+    "mongodb": "latest"
   },
   "keywords": [],
   "author": "",

@@ -14,3 +14,11 @@ variable "game_session_table_name" {
   default = "GameSessionTable"
 
 }
+
+variable "mongodb_user" {
+  default = "demo"
+}
+
+variable "mongodb_pwd" {
+  default = "Abcd1234"
+}

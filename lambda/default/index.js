@@ -1,76 +1,79 @@
+'use strict'
 const async = require('async')
+var MongoClient = require('mongodb').MongoClient
 const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const process = require('process')
+var mongodbUri = process.env.MONGODB_ATLAS_URI
 const fifoQueueUrl = process.env.FIFO_QUEUE_URL
-// const delayedQueueUrl = process.env.DELAYED_QUEUE_URL
 const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
 const playerTableName = process.env.PLAYER_TABLE_NAME
 const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
 const defaultRegion = process.env.DEFAULT_REGION
 const sqs = initSqs()
-const ddb = initDynamoDB()
 const enableLog = process.env['LOG_ENABLED'] || false
 
 exports.handler = function (event, context, callback) {
   console.log(event)
+  context.callbackWaitsForEmptyEventLoop = false
   if (event['requestContext']) {
-    handleAction(event)
+    handleAction(event, context, callback)
   } else if (event['Records']) {
-    handleMessages(event)
+    handleMessages(event, callback)
   }
+}
+
+function lambdaResponse (callback) {
   const response = {
     statusCode: 200,
-    body: JSON.stringify({ message: 'hello' })
+    body: JSON.stringify('Hello from Default!')
   }
   console.log('response', response)
   callback(null, response)
 }
 
-function handleAction (event) {
-  request = JSON.parse(event['body'])
-  connectionId = event['requestContext']['connectionId']
+function handleAction (event, context, callback) {
+  let request = JSON.parse(event['body'])
+  let connectionId = event['requestContext']['connectionId']
   const domain = event.requestContext.domainName
   const stage = event.requestContext.stage
   if (!isNull(request) && !isNull(request['action'])) {
     switch (request['action']) {
       case 'create':
         console.log('create')
-        createRoom(connectionId, request['room'])
+        createRoom(connectionId, request['room'], context, callback)
         break
       case 'join':
         console.log('join')
-        joinRoom(connectionId, request['room'], domain, stage)
+        joinRoom(connectionId, request['room'], domain, stage, callback)
         break
       case 'shoot':
         console.log('shoot')
-        proceedShooting(request, connectionId, domain, stage)
+        proceedShooting(request, connectionId, domain, stage, callback)
         break
       default:
-        console.log('default')
+        console.log('action ', request['action'], ' is not handled')
         break
     }
   } else {
     console.log(request)
-    console.log(isNull(request))
-    console.log(isNull(request.action))
   }
 }
 
-function handleMessages (event) {
-  records = event.Records
+function handleMessages (event, callback) {
+  let records = event.Records
   for (let i = 0; i < records.length; i++) {
-    record = records[i]
-    request = JSON.parse(record['body'])
+    let record = records[i]
+    let request = JSON.parse(record['body'])
     if (!isNull(request) && !isNull(request['action'])) {
       switch (request['action']) {
         case 'newtargets':
           console.log('new targets')
-          proceedNewTargets(request.data)
+          proceedNewTargets(request.data, callback)
           break
         case 'stop':
           console.log('stop')
-          proceedStop(request.data)
+          proceedStop(request.data, callback)
           break
         default:
           console.log('default')
@@ -84,7 +87,7 @@ function handleMessages (event) {
   }
 }
 
-function proceedStop (request) {
+function proceedStop (request, lambdaCallback) {
   async.waterfall(
     [
       function (callback) {
@@ -112,11 +115,12 @@ function proceedStop (request) {
       if (!err) {
         console.log('proceedStop ok')
       }
+      lambdaResponse(lambdaCallback)
     }
   )
 }
 
-function proceedNewTargets (request) {
+function proceedNewTargets (request, lambdaCallback) {
   async.waterfall(
     [
       function (callback) {
@@ -144,12 +148,13 @@ function proceedNewTargets (request) {
       if (!err) {
         console.log('proceedNewTargets ok')
       }
+      lambdaResponse(lambdaCallback)
     }
   )
 }
 
-function proceedShooting (request, connectionId, domain, stage) {
-  shootInfo = request
+function proceedShooting (request, connectionId, domain, stage, lambdaCallback) {
+  let shootInfo = request
   shootInfo.connectionId = connectionId
   shootInfo.domain = domain
   shootInfo.stage = stage
@@ -177,176 +182,150 @@ function proceedShooting (request, connectionId, domain, stage) {
       if (!err) {
         console.log('proceedShooting ok')
       }
+      lambdaResponse(lambdaCallback)
     }
   )
 }
 
-function createRoom (connectionId, roomName) {
-  async.waterfall(
-    [
-      function (callback) {
-        console.log('update player table')
-        updateRecord(
-          ddb,
-          playerTableName,
-          {
-            connectionId: { S: connectionId },
-            roomId: { S: roomName },
-            host: { N: '0' }
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data)
+function createRoom (connectionId, roomName, context, lambdaCallback) {
+  context.callbackWaitsForEmptyEventLoop = false
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    console.log('update')
+
+    async.waterfall(
+      [
+        function (callback) {
+          console.log('update player table')
+          insertRecord(
+            db,
+            playerTableName,
+            {
+              connectionId: connectionId,
+              roomId: roomName,
+              host: '0'
+            },
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        console.log('update session table')
-        updateRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: roomName },
-            connectionIds: { S: JSON.stringify([connectionId]) }
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data)
+          )
+        },
+        function (data, callback) {
+          console.log('update session table')
+          insertRecord(
+            db,
+            gameSessionTableName,
+            {
+              roomId: roomName,
+              connectionIds: [connectionId]
+            },
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
+          )
+        }
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('create ok')
+        }
+        lambdaResponse(lambdaCallback)
       }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('create ok')
-      }
-    }
-  )
+    )
+  })
 }
 
-function joinRoom (connectionId, roomName, domain, stage) {
-  async.waterfall(
-    [
-      function (callback) {
-        updateRecord(
-          ddb,
-          playerTableName,
-          {
-            connectionId: { S: connectionId },
-            roomId: { S: roomName },
-            host: { N: '1' }
-          },
-          function (err, data) {
-            if (err) {
-              callback(err, null)
-            } else {
-              callback(null, data)
+function joinRoom (connectionId, roomId, domain, stage, lambdaCallback) {
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    async.waterfall(
+      [
+        function (callback) {
+          insertRecord(
+            db,
+            playerTableName,
+            {
+              connectionId: connectionId,
+              roomId: roomId,
+              host: '1'
+            },
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        readRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: roomName }
-          },
-          function (err, data) {
-            if (err) {
-              callback(err, null)
-            } else {
-              callback(null, data.Item)
+          )
+        },
+        function (data, callback) {
+          readRecord(
+            db,
+            gameSessionTableName,
+            [
+              {
+                name: 'roomId',
+                value: roomId
+              }
+            ],
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        participants = JSON.parse(data['connectionIds']['S'])
-        participants.push(connectionId)
-        updateRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: roomName },
-            connectionIds: { S: JSON.stringify(participants) }
-          },
-          function (err, data) {
-            if (err) {
-              callback(err, null)
-            } else {
-              callback(null, data)
+          )
+        },
+        function (data, callback) {
+          let participants = data['connectionIds']
+          participants.push(connectionId)
+          updateRecord(
+            db,
+            gameSessionTableName,
+            {
+              $set: {
+                connectionIds: participants
+              }
+            },
+            [{ name: 'roomId', value: roomId }],
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        readRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: roomName }
-          },
-          function (err, data) {
-            if (err) {
-              callback(err, null)
-            } else {
-              console.log('data', data.Item)
-              callback(null, data.Item)
+          )
+        },
+        function (data, callback) {
+          readRecord(
+            db,
+            gameSessionTableName,
+            [
+              {
+                name: 'roomId',
+                value: roomId
+              }
+            ],
+            function (err, data) {
+              callback(err, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        sendFifoMessage(
-          sqs,
-          fifoQueueUrl,
-          JSON.stringify({
-            data: data,
-            action: 'start',
-            domain: domain,
-            stage: stage
-          }),
-          callback
-        )
+          )
+        },
+        function (data, callback) {
+          sendFifoMessage(
+            sqs,
+            fifoQueueUrl,
+            JSON.stringify({
+              data: data,
+              action: 'start',
+              domain: domain,
+              stage: stage
+            }),
+            callback
+          )
+        }
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('join ok')
+          lambdaResponse(lambdaCallback)
+        }
       }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('join ok')
-      }
-    }
-  )
-}
-
-function initDynamoDB () {
-  // Set the region
-  AWS.config.update({ region: defaultRegion })
-
-  // Create an SQS service object
-  return new AWS.DynamoDB({ apiVersion: '2012-08-10' })
-}
-
-function updateRecord (ddb, tableName, content, callback) {
-  var params = {
-    TableName: tableName,
-    Item: content
-  }
-
-  ddb.putItem(params, function (err, data) {
-    callback(err, data)
+    )
   })
 }
 
@@ -354,15 +333,48 @@ function isNull (value) {
   return value == null
 }
 
-function readRecord (ddb, tableName, keys, callback) {
-  var params = {
-    TableName: tableName,
-    Key: keys
-  }
+function updateRecord (db, collectionName, content, keys, callback) {
+  db.collection(collectionName).updateOne(
+    formQuery(keys),
+    content,
+    function (err, result) {
+      handleResult(err, content, callback)
+    }
+  )
+}
 
-  ddb.getItem(params, function (err, data) {
-    callback(err, data)
+function insertRecord (db, collectionName, content, callback) {
+  db.collection(collectionName).insertOne(content, function (err, result) {
+    handleResult(err, content, callback)
   })
+}
+
+function readRecord (db, collectionName, keys, callback) {
+  // Call DynamoDB to add the item to the table
+  db.collection(collectionName)
+    .find(formQuery(keys))
+    .toArray(function (err, result) {
+      handleResult(err, result[0], callback)
+    })
+}
+
+function formQuery (keys) {
+  var query = {}
+  for (let i = 0; i < keys.length; i++) {
+    var key = keys[i]
+    query[key.name] = key.value
+  }
+  return query
+}
+
+function handleResult (err, result, callback) {
+  if (err != null) {
+    console.error('an error occurred', err)
+    callback(err, JSON.stringify(err))
+  } else {
+    console.log(result)
+    callback(null, result)
+  }
 }
 
 function initSqs () {

@@ -9,7 +9,8 @@
   "dependencies": {
     "aws-sdk": "",
     "async":"",
-    "aws-xray-sdk":""
+    "aws-xray-sdk":"",
+    "mongodb":"4.2"
   },
   "keywords": [],
   "author": "",

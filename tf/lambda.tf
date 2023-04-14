@@ -1,3 +1,6 @@
+locals {
+  mongodbUrl = "mongodb+srv://${var.mongodb_user}:${var.mongodb_pwd}@${substr(mongodbatlas_cluster.demo.connection_strings[0].standard_srv, length("mongodb+srv://"), length(mongodbatlas_cluster.demo.connection_strings[0].standard_srv))}/admin?retryWrites=true&w=majority"
+}
 resource "aws_lambda_function" "lambda_connect" {
   filename         = "connect.zip"
   function_name    = "game-demo-connect"
@@ -5,7 +8,7 @@ resource "aws_lambda_function" "lambda_connect" {
   handler          = "index.handler"
   timeout          = 10
   source_code_hash = filebase64sha256("connect.zip")
-  runtime          = "nodejs16.x"
+  runtime          = "nodejs18.x"
   # vpc_config {
   #   subnet_ids = module.vpc.private_subnets
   #   security_group_ids = [module.vpc.default_security_group_id]
@@ -21,6 +24,7 @@ resource "aws_lambda_function" "lambda_connect" {
       PLAYER_TABLE_NAME       = aws_ssm_parameter.player_table_name.value
       GAME_SESSION_TABLE_NAME = aws_ssm_parameter.game_session_table_name.value
       DEFAULT_REGION          = aws_ssm_parameter.default_region.value
+      MONGODB_ATLAS_URI       = local.mongodbUrl
     }
   }
 }
@@ -32,7 +36,7 @@ resource "aws_lambda_function" "lambda_disconnect" {
   handler          = "index.handler"
   timeout          = 10
   source_code_hash = filebase64sha256("disconnect.zip")
-  runtime          = "nodejs16.x"
+  runtime          = "nodejs18.x"
   # vpc_config {
   #   subnet_ids = module.vpc.private_subnets
   #   security_group_ids = [module.vpc.default_security_group_id]
@@ -48,6 +52,7 @@ resource "aws_lambda_function" "lambda_disconnect" {
       PLAYER_TABLE_NAME       = aws_ssm_parameter.player_table_name.value
       GAME_SESSION_TABLE_NAME = aws_ssm_parameter.game_session_table_name.value
       DEFAULT_REGION          = aws_ssm_parameter.default_region.value
+      MONGODB_ATLAS_URI       = local.mongodbUrl
     }
   }
 }
@@ -59,7 +64,7 @@ resource "aws_lambda_function" "lambda_default" {
   handler          = "index.handler"
   timeout          = 10
   source_code_hash = filebase64sha256("default.zip")
-  runtime          = "nodejs16.x"
+  runtime          = "nodejs18.x"
   # vpc_config {
   #   subnet_ids = module.vpc.private_subnets
   #   security_group_ids = [module.vpc.default_security_group_id]
@@ -75,6 +80,7 @@ resource "aws_lambda_function" "lambda_default" {
       PLAYER_TABLE_NAME       = aws_ssm_parameter.player_table_name.value
       GAME_SESSION_TABLE_NAME = aws_ssm_parameter.game_session_table_name.value
       DEFAULT_REGION          = aws_ssm_parameter.default_region.value
+      MONGODB_ATLAS_URI       = local.mongodbUrl
     }
   }
 }
@@ -87,7 +93,7 @@ resource "aws_lambda_function" "lambda_logic" {
   handler          = "index.handler"
   timeout          = 10
   source_code_hash = filebase64sha256("logic.zip")
-  runtime          = "nodejs16.x"
+  runtime          = "nodejs18.x"
   # vpc_config {
   #   subnet_ids = module.vpc.private_subnets
   #   security_group_ids = [module.vpc.default_security_group_id]
@@ -103,6 +109,7 @@ resource "aws_lambda_function" "lambda_logic" {
       PLAYER_TABLE_NAME       = aws_ssm_parameter.player_table_name.value
       GAME_SESSION_TABLE_NAME = aws_ssm_parameter.game_session_table_name.value
       DEFAULT_REGION          = aws_ssm_parameter.default_region.value
+      MONGODB_ATLAS_URI       = local.mongodbUrl
     }
   }
 }

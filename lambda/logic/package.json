@@ -10,7 +10,8 @@
     "aws-sdk": "",
     "@aws-sdk/client-apigatewaymanagementapi": "",
     "async": "",
-    "aws-xray-sdk":""
+    "aws-xray-sdk":"",
+    "mongodb":"4.2"
   },
   "keywords": [],
   "author": "",

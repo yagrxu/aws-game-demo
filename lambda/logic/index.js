@@ -1,117 +1,157 @@
 const async = require('async')
+var MongoClient = require('mongodb').MongoClient
 const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand
 } = require('@aws-sdk/client-apigatewaymanagementapi')
+const process = require('process')
 
-// const fifoQueueUrl = process.env.FIFO_QUEUE_URL
+var mongodbUri = process.env.MONGODB_ATLAS_URI
+
 const delayedQueueUrl = process.env.DELAYED_QUEUE_URL
-// const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
 const playerTableName = process.env.PLAYER_TABLE_NAME
 const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
 const defaultRegion = process.env.DEFAULT_REGION
 const targets = randomTargets(2)
 console.log(targets)
 const sqs = initSqs()
-const ddb = initDynamoDB()
 
-exports.handler = function (event) {
+exports.handler = function (event, context, callback) {
+  context.callbackWaitsForEmptyEventLoop = false
   console.log(event)
   records = event['Records']
-  for (let i = 0; i < records.length; i++) {
-    record = records[i]
-    handleEvent(record)
-  }
+  handleEvents(records, callback)
+}
 
+function handleEvents (records, callback) {
+  // event number is controlled in sqs by setting the batch size to 1.
+  // Only 1 event will be triggered at a time
+  if (records.length != 1) {
+    return lambdaResponse(callback)
+  }
+  handleEvent(records[0], callback)
+}
+function lambdaResponse (callback) {
   const response = {
     statusCode: 200,
     body: JSON.stringify('Hello from Logic!')
   }
-  return response
+  console.log('response', response)
+  callback(null, response)
 }
 
-function handleEvent (record) {
+function handleEvent (record, callback) {
   console.log('record:', record)
   body = JSON.parse(record.body)
   switch (body.action) {
     case 'start':
       console.log('action start')
-      startGame(body)
+      startGame(body, callback)
       break
     case 'newtargets':
       console.log('action newtargets')
-      handleNewTargets(body)
+      handleNewTargets(body, callback)
       break
     case 'stop':
       console.log('action stop')
-      stopGame(body)
+      stopGame(body, callback)
       break
     case 'shoot':
       console.log('action shoot')
-      handleShoot(body)
+      handleShoot(body, callback)
       break
     default:
-      break
+      return lambdaResponse(callback)
   }
 }
 
-function handleNewTargets (body) {
+function handleNewTargets (body, lambdaCallback) {
   console.log('body', body)
   let request = body.data
   updatedTargets = null
-  //body.data.targets = { S: JSON.stringify() }
-  async.waterfall(
-    [
-      function (callback) {
-        console.log('read targets')
-        readRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: request.roomId }
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data.Item)
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    async.waterfall(
+      [
+        function (callback) {
+          console.log('read targets')
+          readRecord(
+            db,
+            gameSessionTableName,
+            [
+              {
+                name: 'roomId',
+                value: request.roomId
+              }
+            ],
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                callback(null, data)
+              }
             }
+          )
+        },
+        function (data, callback) {
+          if (data.running == 'false') {
+            callback(new Error('already stopped'), null)
+            return
           }
-        )
-      },
-      function (data, callback) {
-        if (data.running.S == 'false') {
-          callback(new Error('already stopped'), null)
-        }
-        console.log('update targets')
-        updatedTargets = JSON.parse(data.targets.S).concat(
-          JSON.parse(request.targets)
-        )
-        data.targets.S = JSON.stringify(updatedTargets)
-        updateRecord(ddb, gameSessionTableName, data, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data)
-          }
-        })
-      },
-      function (data, callback) {
-        sendDelayedNewTargets(
-          {
-            targets: JSON.stringify(randomTargets(2)),
-            domain: request.domain,
-            stage: request.stage,
-            ids: request.ids,
-            roomId: request.roomId
-          },
-          function (err, data) {
+          console.log('update targets')
+          updatedTargets = data.targets.concat(request.targets)
+          updateRecord(
+            db,
+            gameSessionTableName,
+            {
+              $set: {
+                targets: updatedTargets
+              }
+            },
+            [
+              {
+                name: 'roomId',
+                value: request.roomId
+              }
+            ],
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                callback(null, data)
+              }
+            }
+          )
+        },
+        function (data, callback) {
+          sendDelayedNewTargets(
+            {
+              targets: JSON.stringify(randomTargets(2)),
+              domain: request.domain,
+              stage: request.stage,
+              ids: request.ids,
+              roomId: request.roomId
+            },
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                callback(null, data)
+              }
+            }
+          )
+        },
+        function (data, callback) {
+          sendTargetUpdate(request, function (err, data) {
             if (err) {
               console.log(err)
               callback(err, null)
@@ -119,119 +159,121 @@ function handleNewTargets (body) {
               console.log(data)
               callback(null, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        sendTargetUpdate(request, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data)
-          }
-        })
+          })
+        }
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('create ok')
+        }
+        lambdaResponse(lambdaCallback)
       }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('create ok')
-      }
-    }
-  )
+    )
+  })
 }
 
-function handleShoot (body) {
+function handleShoot (body, lambdaCallback) {
   shootItem = body
-  async.waterfall(
-    [
-      function (callback) {
-        console.log('get targets')
-        readRecord(
-          ddb,
-          playerTableName,
-          {
-            connectionId: { S: shootItem.connectionId }
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              shootItem.player = data.Item.host.N
-              callback(null, data.Item)
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    async.waterfall(
+      [
+        function (callback) {
+          console.log('get targets')
+          readRecord(
+            db,
+            playerTableName,
+            {
+              name: 'connectionId',
+              value: shootItem.connectionId
+            },
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                shootItem.player = data.host
+                callback(null, data)
+              }
             }
-          }
-        )
-      },
-      function (data, callback) {
-        console.log(data)
-        readRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: data.roomId.S }
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data.Item)
+          )
+        },
+        function (data, callback) {
+          console.log(data)
+          readRecord(
+            db,
+            gameSessionTableName,
+            {
+              name: 'roomId',
+              value: data.roomId
+            },
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                callback(null, data)
+              }
             }
+          )
+        },
+        function (data, callback) {
+          result = filterHit(data.targets, shootItem)
+          existingTargets = result.targets
+          shootItem.hit = result.hit
+          if (result.hit.length > 0) {
+            playerStatus = data.status
+            playerStatus[shootItem.player] += result.hit.length
+            data.status = playerStatus
           }
-        )
-      },
-      function (data, callback) {
-        result = filterHit(JSON.parse(data.targets.S), shootItem)
-        existingTargets = result.targets
-        shootItem.hit = result.hit
-        if (result.hit.length > 0) {
-          playerStatus = JSON.parse(data.status.S)
-          playerStatus[shootItem.player] += result.hit.length
-          data.status.S = JSON.stringify(playerStatus)
+          data.targets = existingTargets
+          let dataRecord = data
+          updateRecord(
+            db,
+            gameSessionTableName,
+            {
+              $set: {
+                status: data.status,
+                targets: existingTargets
+              }
+            },
+            [{ name: 'roomId', value: data.roomId }],
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(dataRecord)
+                callback(null, dataRecord)
+              }
+            }
+          )
+        },
+        function (data, callback) {
+          shootInfo = shootItem
+          shootInfo.connectionIds = data.connectionIds
+          shootInfo.stage = shootItem.stage
+          shootInfo.domain = shootItem.domain
+          shootInfo.hit = shootItem.hit
+          console.log('shootInfo', shootInfo)
+          updateShoot(shootInfo, function (err, data) {
+            callback(err, data)
+          })
         }
-        data.targets.S = JSON.stringify(existingTargets)
-        dataRecord = data
-        updateRecord(ddb, gameSessionTableName, data, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(dataRecord)
-            callback(null, dataRecord)
-          }
-        })
-      },
-      function (data, callback) {
-        shootInfo = shootItem
-        shootInfo.connectionIds = JSON.parse(data.connectionIds.S)
-        shootInfo.stage = shootItem.stage
-        shootInfo.domain = shootItem.domain
-        shootInfo.hit = shootItem.hit
-        console.log('shootInfo', shootInfo)
-        updateShoot(shootInfo, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data.Item)
-          }
-        })
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('create ok')
+        }
+        lambdaResponse(lambdaCallback)
       }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('create ok')
-      }
-    }
-  )
+    )
+  })
 }
 
 function filterHit (targets, shootInfo) {
@@ -291,155 +333,167 @@ function getNearestPoint (x, y, pointList) {
   return nearestPoint
 }
 
-function startGame (body) {
-  body.data.targets = { S: JSON.stringify(targets) }
-  body.data.status = {
-    S: JSON.stringify({
-      0: 0,
-      1: 0
-    })
+function startGame (body, lambdaCallback) {
+  let status = {
+    0: 0,
+    1: 0
   }
-  body.data.running = {
-    S: 'true'
-  }
-  async.waterfall(
-    [
-      function (callback) {
-        console.log('update targets')
-        updateRecord(
-          ddb,
-          gameSessionTableName,
-          body.data,
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data)
-            }
-          }
-        )
-      },
-      function (data, callback) {
-        sendDelayedNewTargets(
-          {
-            targets: JSON.stringify(randomTargets(2)),
-            domain: body.domain,
-            stage: body.stage,
-            ids: body.data.connectionIds.S,
-            roomId: body.data.roomId.S
-          },
-          function (err, data) {
-            if (err) {
-              console.log(err)
-              callback(err, null)
-            } else {
-              console.log(data)
-              callback(null, data)
-            }
-          }
-        )
-      },
-      function (data, callback) {
-        console.log('send delayed stop', data)
-        sendDelayedMessage(
-          sqs,
-          delayedQueueUrl,
-          JSON.stringify({
-            action: 'stop',
-            data: {
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    async.waterfall(
+      [
+        function (callback) {
+          console.log('update targets')
+          updateRecord(
+            db,
+            gameSessionTableName,
+            {
+              $set: {
+                targets: targets,
+                status: status,
+                running: 'true'
+              }
+            },
+            [{ name: 'roomId', value: body.data.roomId }],
+            callback
+          )
+        },
+        function (data, callback) {
+          sendDelayedNewTargets(
+            {
+              targets: JSON.stringify(randomTargets(2)),
               domain: body.domain,
               stage: body.stage,
-              ids: body.data.connectionIds.S,
-              roomId: body.data.roomId.S
+              ids: body.data.connectionIds,
+              roomId: body.data.roomId
+            },
+            callback
+          )
+        },
+        function (data, callback) {
+          console.log('send delayed stop', data)
+          sendDelayedMessage(
+            sqs,
+            delayedQueueUrl,
+            JSON.stringify({
+              action: 'stop',
+              data: {
+                domain: body.domain,
+                stage: body.stage,
+                ids: body.data.connectionIds,
+                roomId: body.data.roomId
+              }
+            }),
+            63,
+            function (err, data) {
+              if (err) {
+                callback(err, null)
+              } else {
+                callback(null, data)
+              }
             }
-          }),
-          65,
-          function (err, data) {
-            if (err) {
-              callback(err, null)
-            } else {
-              callback(null, data)
-            }
-          }
-        )
-      },
-      function (data, callback) {
-        sendStart(body, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data)
-          }
-        })
-      }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('create ok')
-      }
-    }
-  )
-}
-
-function stopGame (body) {
-  async.waterfall(
-    [
-      function (callback) {
-        console.log('get player status', body)
-        readRecord(
-          ddb,
-          gameSessionTableName,
-          {
-            roomId: { S: body.data.roomId }
-          },
-          function (err, data) {
+          )
+        },
+        function (data, callback) {
+          sendStart(body, function (err, data) {
             if (err) {
               console.log(err)
               callback(err, null)
             } else {
               console.log(data)
-              callback(null, data.Item)
+              callback(null, data)
             }
-          }
-        )
-      },
-      function (data, callback) {
-        record = data
-        record.running.S = 'false'
-        updateRecord(ddb, gameSessionTableName, record, function (err, data) {
-          if (err) {
-            callback(err, null)
-          } else {
-            callback(null, record)
-          }
-        })
-      },
-      function (data, callback) {
-        playerStatus = JSON.parse(data.status.S)
-        body.data.winner = playerStatus['0'] >= playerStatus['1'] ? 0 : 1
-        sendStop(body, function (err, data) {
-          if (err) {
-            console.log(err)
-            callback(err, null)
-          } else {
-            console.log(data)
-            callback(null, data)
-          }
-        })
+          })
+        }
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('create ok')
+        }
+        lambdaResponse(lambdaCallback)
       }
-    ],
-    function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('create ok')
+    )
+  })
+}
+
+function stopGame (body, lambdaCallback) {
+  MongoClient.connect(mongodbUri, function (connErr, client) {
+    if (connErr) return lambdaResponse(lambdaCallback)
+    let db = client.db('devax')
+    async.waterfall(
+      [
+        function (callback) {
+          console.log('get player status', body)
+          readRecord(
+            db,
+            gameSessionTableName,
+            [
+              {
+                name: 'roomId',
+                value: body.data.roomId
+              }
+            ],
+            function (err, data) {
+              if (err) {
+                console.log(err)
+                callback(err, null)
+              } else {
+                console.log(data)
+                callback(null, data)
+              }
+            }
+          )
+        },
+        function (data, callback) {
+          let record = data
+          updateRecord(
+            db,
+            gameSessionTableName,
+            {
+              $set: {
+                running: 'false'
+              }
+            },
+            [
+              {
+                name: 'roomId',
+                value: data.roomId
+              }
+            ],
+            function (err, data) {
+              if (err) {
+                callback(err, null)
+              } else {
+                callback(null, record)
+              }
+            }
+          )
+        },
+        function (data, callback) {
+          playerStatus = data.status
+          body.data.winner = playerStatus['0'] >= playerStatus['1'] ? 0 : 1
+          sendStop(body, function (err, data) {
+            if (err) {
+              console.log(err)
+              callback(err, null)
+            } else {
+              console.log(data)
+              callback(null, data)
+            }
+          })
+        }
+      ],
+      function (err, result) {
+        console.log(err, result)
+        if (!err) {
+          console.log('create ok')
+        }
+        lambdaResponse(lambdaCallback)
       }
-    }
-  )
+    )
+  })
 }
 
 function sendDelayedNewTargets (data, callback) {
@@ -463,17 +517,11 @@ function sendStart (body, callback) {
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
-  ids = JSON.parse(body.data.connectionIds.S)
+  ids = body.data.connectionIds
   console.log(ids)
-  items = enhanceTargets(ids, JSON.parse(body.data.targets.S), client)
+  items = enhanceTargets(ids, targets, client)
   async.each(items, notifyStart, function (err) {
-    if (err) {
-      console.log(err)
-      callback(err, null)
-    } else {
-      console.log('sendStart done')
-      callback(null, 'done')
-    }
+    handleResult(err, 'sendStart all', callback)
   })
 }
 
@@ -484,17 +532,11 @@ function sendTargetUpdate (request, callback) {
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
-  ids = JSON.parse(request.ids)
+  let ids = request.ids
   console.log(ids)
   items = enhanceTargets(ids, JSON.parse(request.targets), client)
   async.each(items, notifyNewTargets, function (err) {
-    if (err) {
-      console.log(err)
-      callback(err, null)
-    } else {
-      console.log('sendTargetUpdate done')
-      callback(null, 'done')
-    }
+    handleResult(err, 'sendTargetUpdate all', callback)
   })
 }
 
@@ -518,17 +560,11 @@ function sendStop (body, callback) {
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
-  ids = JSON.parse(data.ids)
+  ids = data.ids
   console.log(ids)
   items = enhanceStop(ids, data, client)
   async.each(items, notifyStop, function (err) {
-    if (err) {
-      console.log(err)
-      callback(err, null)
-    } else {
-      console.log('sendStop done')
-      callback(null, 'done')
-    }
+    handleResult(err, 'sendStop all', callback)
   })
 }
 
@@ -556,25 +592,8 @@ function updateShoot (data, callback) {
   console.log(ids)
   items = enhanceShootInfo(ids, client, data)
   async.each(items, notifyShoot, function (err) {
-    if (err) {
-      console.log(err)
-      callback(err, null)
-    } else {
-      console.log('updateShoot done')
-      callback(null, 'done')
-    }
+    handleResult(err, 'notifyShoot all', callback)
   })
-}
-
-function enhanceIds (ids, client) {
-  items = []
-  for (let i = 0; i < ids.length; i++) {
-    items.push({
-      id: ids[i],
-      client: client
-    })
-  }
-  return items
 }
 
 function enhanceShootInfo (ids, client, data) {
@@ -595,7 +614,7 @@ function enhanceShootInfo (ids, client, data) {
   return items
 }
 
-function notifyStart (item, cb) {
+function notifyStart (item, callback) {
   console.log('notify start', item.targets)
   const requestParams = {
     ConnectionId: item.id,
@@ -606,15 +625,11 @@ function notifyStart (item, cb) {
   }
   const command = new PostToConnectionCommand(requestParams)
   item.client.send(command, function (err, data) {
-    console.log(err, data)
-    if (err) {
-      return cb(err, null)
-    }
-    cb(null, data)
+    handleResult(err, data, callback)
   })
 }
 
-function notifyNewTargets (item, cb) {
+function notifyNewTargets (item, callback) {
   console.log(item)
   const requestParams = {
     ConnectionId: item.id,
@@ -627,13 +642,13 @@ function notifyNewTargets (item, cb) {
   item.client.send(command, function (err, data) {
     console.log(err, data)
     if (err) {
-      return cb(err, null)
+      return callback(err, null)
     }
-    cb(err, data)
+    callback(err, data)
   })
 }
 
-function notifyStop (item, cb) {
+function notifyStop (item, callback) {
   console.log(item)
   winner = { winner: item.winner }
   const requestParams = {
@@ -647,13 +662,13 @@ function notifyStop (item, cb) {
   item.client.send(command, function (err, data) {
     console.log(err, data)
     if (err) {
-      return cb(err, null)
+      return callback(err, null)
     }
-    cb(err, data)
+    callback(err, data)
   })
 }
 
-function notifyShoot (item, cb) {
+function notifyShoot (item, callback) {
   console.log(item)
   const requestParams = {
     ConnectionId: item.id,
@@ -672,11 +687,7 @@ function notifyShoot (item, cb) {
   }
   const command = new PostToConnectionCommand(requestParams)
   item.client.send(command, function (err, data) {
-    console.log(err, data)
-    if (err) {
-      return cb(err, null)
-    }
-    cb(err, data)
+    handleResult(err, data, callback)
   })
 }
 
@@ -688,10 +699,44 @@ function randomTargets (number) {
   ret = []
   for (let i = 0; i < number; i++) {
     x = getRandomInt(5)
-    y = getRandomInt(5)
+    y = getRandomInt(3) + 1
     ret.push({ x: x, y: y, id: Math.abs(getRandomInt(5000)) })
   }
   return ret
+}
+
+function updateRecord (db, collectionName, content, keys, callback) {
+  db.collection(collectionName).updateOne(
+    formQuery(keys),
+    content,
+    function (err, result) {
+      handleResult(err, content, callback)
+    }
+  )
+}
+
+function insertRecord (db, collectionName, content, callback) {
+  db.collection(collectionName).insertOne(content, function (err, result) {
+    handleResult(err, content, callback)
+  })
+}
+
+function readRecord (db, collectionName, keys, callback) {
+  // Call DynamoDB to add the item to the table
+  db.collection(collectionName)
+    .find(formQuery(keys))
+    .toArray(function (err, result) {
+      handleResult(err, result[0], callback)
+    })
+}
+
+function formQuery (keys) {
+  var query = {}
+  for (let i = 0; i < keys.length; i++) {
+    var key = keys[i]
+    query[key.name] = key.value
+  }
+  return query
 }
 
 function initSqs () {
@@ -700,40 +745,6 @@ function initSqs () {
 
   // Create an SQS service object
   return new AWS.SQS({ apiVersion: '2012-11-05' })
-}
-
-function initDynamoDB () {
-  // Set the region
-  AWS.config.update({ region: defaultRegion })
-
-  // Create an DynamoDB service object
-  return new AWS.DynamoDB({ apiVersion: '2012-08-10' })
-}
-
-function updateRecord (ddb, tableName, content, callback) {
-  var params = {
-    TableName: tableName,
-    Item: content
-  }
-
-  ddb.putItem(params, function (err, data) {
-    callback(err, data)
-  })
-}
-
-function isNull (value) {
-  return value == null
-}
-
-function readRecord (ddb, tableName, keys, callback) {
-  var params = {
-    TableName: tableName,
-    Key: keys
-  }
-
-  ddb.getItem(params, function (err, data) {
-    callback(err, data)
-  })
 }
 
 function sendDelayedMessage (sqs, queueUrl, message, delay, callback) {
@@ -745,6 +756,16 @@ function sendDelayedMessage (sqs, queueUrl, message, delay, callback) {
   }
 
   sqs.sendMessage(params, function (err, data) {
-    callback(err, data)
+    handleResult(err, data, callback)
   })
+}
+
+function handleResult (err, result, callback) {
+  if (err != null) {
+    console.error('an error occurred', err)
+    callback(err, JSON.stringify(err))
+  } else {
+    console.log(result)
+    callback(null, result)
+  }
 }
