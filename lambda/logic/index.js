@@ -185,10 +185,12 @@ function handleShoot (body, lambdaCallback) {
           readRecord(
             db,
             playerTableName,
-            {
-              name: 'connectionId',
-              value: shootItem.connectionId
-            },
+            [
+              {
+                name: 'connectionId',
+                value: shootItem.connectionId
+              }
+            ],
             function (err, data) {
               if (err) {
                 console.log(err)
@@ -206,10 +208,12 @@ function handleShoot (body, lambdaCallback) {
           readRecord(
             db,
             gameSessionTableName,
-            {
-              name: 'roomId',
-              value: data.roomId
-            },
+            [
+              {
+                name: 'roomId',
+                value: data.roomId
+              }
+            ],
             function (err, data) {
               if (err) {
                 console.log(err)
@@ -362,7 +366,7 @@ function startGame (body, lambdaCallback) {
         function (data, callback) {
           sendDelayedNewTargets(
             {
-              targets: JSON.stringify(randomTargets(2)),
+              targets: randomTargets(2),
               domain: body.domain,
               stage: body.stage,
               ids: body.data.connectionIds,
@@ -534,7 +538,7 @@ function sendTargetUpdate (request, callback) {
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
   let ids = request.ids
   console.log(ids)
-  items = enhanceTargets(ids, JSON.parse(request.targets), client)
+  items = enhanceTargets(ids, request.targets, client)
   async.each(items, notifyNewTargets, function (err) {
     handleResult(err, 'sendTargetUpdate all', callback)
   })
@@ -669,7 +673,7 @@ function notifyStop (item, callback) {
 }
 
 function notifyShoot (item, callback) {
-  console.log(item)
+  console.log('notifyShoot', item)
   const requestParams = {
     ConnectionId: item.id,
     Data: JSON.stringify({
