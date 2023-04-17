@@ -6,7 +6,7 @@ resource "mongodbatlas_cluster" "demo" {
   # cluster_type                = "SHARDED"
   provider_name               = "TENANT"
   backing_provider_name       = "AWS"
-  provider_region_name        = "AP_SOUTHEAST_1"
+  provider_region_name        = var.mongodb_provider_region_name
   provider_instance_size_name = "M0"
 }
 data "mongodbatlas_roles_org_id" "demo" {

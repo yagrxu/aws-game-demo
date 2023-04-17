@@ -133,7 +133,7 @@ function handleNewTargets (body, lambdaCallback) {
         function (data, callback) {
           sendDelayedNewTargets(
             {
-              targets: JSON.stringify(randomTargets(2)),
+              targets: randomTargets(2),
               domain: request.domain,
               stage: request.stage,
               ids: request.ids,
