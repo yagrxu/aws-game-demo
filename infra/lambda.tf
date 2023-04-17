@@ -25,6 +25,8 @@ resource "aws_lambda_function" "lambda_connect" {
   }
 }
 
+
+
 resource "aws_lambda_function" "lambda_disconnect" {
   filename         = "disconnect.zip"
   function_name    = "game-demo-disconnect"
@@ -107,23 +109,26 @@ resource "aws_lambda_function" "lambda_logic" {
 }
 
 
-
-data "aws_lambda_function" "game_demo_connect_alias_arn" {
-  function_name = "game-demo-connect"
-  qualifier = "prd"
+resource "aws_lambda_alias" "game_demo_connect_alias_arn" {
+  name             = "prd"
+  function_name    = aws_lambda_function.lambda_connect.function_name
+  function_version = "1"
 }
 
-data "aws_lambda_function" "game_demo_disconnect_alias_arn" {
-  function_name = "game-demo-disconnect"
-  qualifier = "prd"
+resource "aws_lambda_alias" "game_demo_disconnect_alias_arn" {
+  name             = "prd"
+  function_name    = aws_lambda_function.lambda_disconnect.function_name
+  function_version = "1"
 }
 
-data "aws_lambda_function" "game_demo_default_alias_arn" {
-  function_name = "game-demo-default"
-  qualifier = "prd"
+resource "aws_lambda_alias" "game_demo_default_alias_arn" {
+  name             = "prd"
+  function_name    = aws_lambda_function.lambda_default.function_name
+  function_version = "1"
 }
 
-data "aws_lambda_function" "game_demo_logic_alias_arn" {
-  function_name = "game-demo-logic"
-  qualifier = "prd"
+resource "aws_lambda_alias" "game_demo_logic_alias_arn" {
+  name             = "prd"
+  function_name    = aws_lambda_function.lambda_logic.function_name
+  function_version = "1"
 }
