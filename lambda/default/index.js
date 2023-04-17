@@ -1,8 +1,7 @@
 'use strict'
 const async = require('async')
 var MongoClient = require('mongodb').MongoClient
-const AWSXRay = require('aws-xray-sdk')
-const AWS = AWSXRay.captureAWS(require('aws-sdk'))
+const AWS = require('aws-sdk')
 const process = require('process')
 var mongodbUri = process.env.MONGODB_ATLAS_URI
 const fifoQueueUrl = process.env.FIFO_QUEUE_URL
@@ -14,7 +13,6 @@ const sqs = initSqs()
 const enableLog = process.env['LOG_ENABLED'] || false
 
 exports.handler = function (event, context, callback) {
-  console.log(event)
   context.callbackWaitsForEmptyEventLoop = false
   if (event['requestContext']) {
     handleAction(event, context, callback)
@@ -28,7 +26,6 @@ function lambdaResponse (callback) {
     statusCode: 200,
     body: JSON.stringify('Hello from Default!')
   }
-  console.log('response', response)
   callback(null, response)
 }
 
@@ -40,23 +37,19 @@ function handleAction (event, context, callback) {
   if (!isNull(request) && !isNull(request['action'])) {
     switch (request['action']) {
       case 'create':
-        console.log('create')
         createRoom(connectionId, request['room'], context, callback)
         break
       case 'join':
-        console.log('join')
         joinRoom(connectionId, request['room'], domain, stage, callback)
         break
       case 'shoot':
-        console.log('shoot')
         proceedShooting(request, connectionId, domain, stage, callback)
         break
       default:
-        console.log('action ', request['action'], ' is not handled')
         break
     }
   } else {
-    console.log(request)
+    lambdaResponse(callback)
   }
 }
 
@@ -68,21 +61,16 @@ function handleMessages (event, callback) {
     if (!isNull(request) && !isNull(request['action'])) {
       switch (request['action']) {
         case 'newtargets':
-          console.log('new targets')
           proceedNewTargets(request.data, callback)
           break
         case 'stop':
-          console.log('stop')
           proceedStop(request.data, callback)
           break
         default:
-          console.log('default')
           break
       }
     } else {
-      console.log(request)
-      console.log(isNull(request))
-      console.log(isNull(request.action))
+      lambdaResponse(callback)
     }
   }
 }
@@ -100,10 +88,8 @@ function proceedStop (request, lambdaCallback) {
           }),
           function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           }
@@ -111,10 +97,6 @@ function proceedStop (request, lambdaCallback) {
       }
     ],
     function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('proceedStop ok')
-      }
       lambdaResponse(lambdaCallback)
     }
   )
@@ -133,10 +115,8 @@ function proceedNewTargets (request, lambdaCallback) {
           }),
           function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           }
@@ -144,10 +124,6 @@ function proceedNewTargets (request, lambdaCallback) {
       }
     ],
     function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('proceedNewTargets ok')
-      }
       lambdaResponse(lambdaCallback)
     }
   )
@@ -167,10 +143,8 @@ function proceedShooting (request, connectionId, domain, stage, lambdaCallback) 
           JSON.stringify(shootInfo),
           function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           }
@@ -178,10 +152,6 @@ function proceedShooting (request, connectionId, domain, stage, lambdaCallback) 
       }
     ],
     function (err, result) {
-      console.log(err, result)
-      if (!err) {
-        console.log('proceedShooting ok')
-      }
       lambdaResponse(lambdaCallback)
     }
   )
@@ -192,12 +162,10 @@ function createRoom (connectionId, roomName, context, lambdaCallback) {
   MongoClient.connect(mongodbUri, function (connErr, client) {
     if (connErr) return lambdaResponse(lambdaCallback)
     let db = client.db('devax')
-    console.log('update')
 
     async.waterfall(
       [
         function (callback) {
-          console.log('update player table')
           insertRecord(
             db,
             playerTableName,
@@ -212,7 +180,6 @@ function createRoom (connectionId, roomName, context, lambdaCallback) {
           )
         },
         function (data, callback) {
-          console.log('update session table')
           insertRecord(
             db,
             gameSessionTableName,
@@ -227,10 +194,6 @@ function createRoom (connectionId, roomName, context, lambdaCallback) {
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('create ok')
-        }
         lambdaResponse(lambdaCallback)
       }
     )
@@ -319,11 +282,7 @@ function joinRoom (connectionId, roomId, domain, stage, lambdaCallback) {
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('join ok')
-          lambdaResponse(lambdaCallback)
-        }
+        lambdaResponse(lambdaCallback)
       }
     )
   })
@@ -372,7 +331,6 @@ function handleResult (err, result, callback) {
     console.error('an error occurred', err)
     callback(err, JSON.stringify(err))
   } else {
-    console.log(result)
     callback(null, result)
   }
 }

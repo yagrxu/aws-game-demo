@@ -1,7 +1,6 @@
 const async = require('async')
 var MongoClient = require('mongodb').MongoClient
-const AWSXRay = require('aws-xray-sdk')
-const AWS = AWSXRay.captureAWS(require('aws-sdk'))
+const AWS = require('aws-sdk')
 const {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand
@@ -15,12 +14,10 @@ const playerTableName = process.env.PLAYER_TABLE_NAME
 const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
 const defaultRegion = process.env.DEFAULT_REGION
 const targets = randomTargets(2)
-console.log(targets)
 const sqs = initSqs()
 
 exports.handler = function (event, context, callback) {
   context.callbackWaitsForEmptyEventLoop = false
-  console.log(event)
   records = event['Records']
   handleEvents(records, callback)
 }
@@ -38,28 +35,22 @@ function lambdaResponse (callback) {
     statusCode: 200,
     body: JSON.stringify('Hello from Logic!')
   }
-  console.log('response', response)
   callback(null, response)
 }
 
 function handleEvent (record, callback) {
-  console.log('record:', record)
   body = JSON.parse(record.body)
   switch (body.action) {
     case 'start':
-      console.log('action start')
       startGame(body, callback)
       break
     case 'newtargets':
-      console.log('action newtargets')
       handleNewTargets(body, callback)
       break
     case 'stop':
-      console.log('action stop')
       stopGame(body, callback)
       break
     case 'shoot':
-      console.log('action shoot')
       handleShoot(body, callback)
       break
     default:
@@ -68,7 +59,6 @@ function handleEvent (record, callback) {
 }
 
 function handleNewTargets (body, lambdaCallback) {
-  console.log('body', body)
   let request = body.data
   updatedTargets = null
   MongoClient.connect(mongodbUri, function (connErr, client) {
@@ -77,7 +67,6 @@ function handleNewTargets (body, lambdaCallback) {
     async.waterfall(
       [
         function (callback) {
-          console.log('read targets')
           readRecord(
             db,
             gameSessionTableName,
@@ -89,10 +78,8 @@ function handleNewTargets (body, lambdaCallback) {
             ],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 callback(null, data)
               }
             }
@@ -103,7 +90,6 @@ function handleNewTargets (body, lambdaCallback) {
             callback(new Error('already stopped'), null)
             return
           }
-          console.log('update targets')
           updatedTargets = data.targets.concat(request.targets)
           updateRecord(
             db,
@@ -121,10 +107,8 @@ function handleNewTargets (body, lambdaCallback) {
             ],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 callback(null, data)
               }
             }
@@ -141,10 +125,8 @@ function handleNewTargets (body, lambdaCallback) {
             },
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 callback(null, data)
               }
             }
@@ -153,20 +135,14 @@ function handleNewTargets (body, lambdaCallback) {
         function (data, callback) {
           sendTargetUpdate(request, function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           })
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('create ok')
-        }
         lambdaResponse(lambdaCallback)
       }
     )
@@ -181,7 +157,6 @@ function handleShoot (body, lambdaCallback) {
     async.waterfall(
       [
         function (callback) {
-          console.log('get targets')
           readRecord(
             db,
             playerTableName,
@@ -193,10 +168,8 @@ function handleShoot (body, lambdaCallback) {
             ],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 shootItem.player = data.host
                 callback(null, data)
               }
@@ -204,7 +177,6 @@ function handleShoot (body, lambdaCallback) {
           )
         },
         function (data, callback) {
-          console.log(data)
           readRecord(
             db,
             gameSessionTableName,
@@ -216,10 +188,8 @@ function handleShoot (body, lambdaCallback) {
             ],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 callback(null, data)
               }
             }
@@ -248,10 +218,8 @@ function handleShoot (body, lambdaCallback) {
             [{ name: 'roomId', value: data.roomId }],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(dataRecord)
                 callback(null, dataRecord)
               }
             }
@@ -263,17 +231,12 @@ function handleShoot (body, lambdaCallback) {
           shootInfo.stage = shootItem.stage
           shootInfo.domain = shootItem.domain
           shootInfo.hit = shootItem.hit
-          console.log('shootInfo', shootInfo)
           updateShoot(shootInfo, function (err, data) {
             callback(err, data)
           })
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('create ok')
-        }
         lambdaResponse(lambdaCallback)
       }
     )
@@ -299,15 +262,12 @@ function filterHit (targets, shootInfo) {
       possibleHit.push(targets[i])
     }
   }
-  console.log('possibleHit', possibleHit)
   if (possibleHit.length > 0) {
     pointToRemove = getNearestPoint(
       shootInfo.origin.x,
       shootInfo.origin.y,
       targets
     )
-    console.log(pointToRemove)
-    console.log(targets.filter(obj => obj.id !== pointToRemove.id))
     ret.hit.push(pointToRemove.id)
     ret.targets = targets.filter(obj => obj.id !== pointToRemove.id)
   }
@@ -348,7 +308,6 @@ function startGame (body, lambdaCallback) {
     async.waterfall(
       [
         function (callback) {
-          console.log('update targets')
           updateRecord(
             db,
             gameSessionTableName,
@@ -376,7 +335,6 @@ function startGame (body, lambdaCallback) {
           )
         },
         function (data, callback) {
-          console.log('send delayed stop', data)
           sendDelayedMessage(
             sqs,
             delayedQueueUrl,
@@ -402,20 +360,14 @@ function startGame (body, lambdaCallback) {
         function (data, callback) {
           sendStart(body, function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           })
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('create ok')
-        }
         lambdaResponse(lambdaCallback)
       }
     )
@@ -429,7 +381,6 @@ function stopGame (body, lambdaCallback) {
     async.waterfall(
       [
         function (callback) {
-          console.log('get player status', body)
           readRecord(
             db,
             gameSessionTableName,
@@ -441,10 +392,8 @@ function stopGame (body, lambdaCallback) {
             ],
             function (err, data) {
               if (err) {
-                console.log(err)
                 callback(err, null)
               } else {
-                console.log(data)
                 callback(null, data)
               }
             }
@@ -480,20 +429,14 @@ function stopGame (body, lambdaCallback) {
           body.data.winner = playerStatus['0'] >= playerStatus['1'] ? 0 : 1
           sendStop(body, function (err, data) {
             if (err) {
-              console.log(err)
               callback(err, null)
             } else {
-              console.log(data)
               callback(null, data)
             }
           })
         }
       ],
       function (err, result) {
-        console.log(err, result)
-        if (!err) {
-          console.log('create ok')
-        }
         lambdaResponse(lambdaCallback)
       }
     )
@@ -501,7 +444,6 @@ function stopGame (body, lambdaCallback) {
 }
 
 function sendDelayedNewTargets (data, callback) {
-  console.log('send delayed new targets', data)
   sendDelayedMessage(
     sqs,
     delayedQueueUrl,
@@ -517,12 +459,10 @@ function sendDelayedNewTargets (data, callback) {
 function sendStart (body, callback) {
   const domain = body.domain
   const stage = body.stage
-  console.log(domain, stage, body)
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
   ids = body.data.connectionIds
-  console.log(ids)
   items = enhanceTargets(ids, targets, client)
   async.each(items, notifyStart, function (err) {
     handleResult(err, 'sendStart all', callback)
@@ -532,12 +472,10 @@ function sendStart (body, callback) {
 function sendTargetUpdate (request, callback) {
   const domain = request.domain
   const stage = request.stage
-  console.log(domain, stage, request)
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
   let ids = request.ids
-  console.log(ids)
   items = enhanceTargets(ids, request.targets, client)
   async.each(items, notifyNewTargets, function (err) {
     handleResult(err, 'sendTargetUpdate all', callback)
@@ -560,12 +498,10 @@ function sendStop (body, callback) {
   data = body.data
   const domain = data.domain
   const stage = data.stage
-  console.log(domain, stage, data)
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
   ids = data.ids
-  console.log(ids)
   items = enhanceStop(ids, data, client)
   async.each(items, notifyStop, function (err) {
     handleResult(err, 'sendStop all', callback)
@@ -585,15 +521,12 @@ function enhanceStop (ids, data, client) {
 }
 
 function updateShoot (data, callback) {
-  console.log('updateShoot data', data)
   const domain = data.domain
   const stage = data.stage
-  console.log(domain, stage, data)
 
   const callbackUrl = `https://${domain}/${stage}`
   const client = new ApiGatewayManagementApiClient({ endpoint: callbackUrl })
   ids = data.connectionIds
-  console.log(ids)
   items = enhanceShootInfo(ids, client, data)
   async.each(items, notifyShoot, function (err) {
     handleResult(err, 'notifyShoot all', callback)
@@ -619,7 +552,6 @@ function enhanceShootInfo (ids, client, data) {
 }
 
 function notifyStart (item, callback) {
-  console.log('notify start', item.targets)
   const requestParams = {
     ConnectionId: item.id,
     Data: JSON.stringify({
@@ -634,7 +566,6 @@ function notifyStart (item, callback) {
 }
 
 function notifyNewTargets (item, callback) {
-  console.log(item)
   const requestParams = {
     ConnectionId: item.id,
     Data: JSON.stringify({
@@ -644,7 +575,6 @@ function notifyNewTargets (item, callback) {
   }
   const command = new PostToConnectionCommand(requestParams)
   item.client.send(command, function (err, data) {
-    console.log(err, data)
     if (err) {
       return callback(err, null)
     }
@@ -653,7 +583,6 @@ function notifyNewTargets (item, callback) {
 }
 
 function notifyStop (item, callback) {
-  console.log(item)
   winner = { winner: item.winner }
   const requestParams = {
     ConnectionId: item.id,
@@ -664,7 +593,6 @@ function notifyStop (item, callback) {
   }
   const command = new PostToConnectionCommand(requestParams)
   item.client.send(command, function (err, data) {
-    console.log(err, data)
     if (err) {
       return callback(err, null)
     }
@@ -673,7 +601,6 @@ function notifyStop (item, callback) {
 }
 
 function notifyShoot (item, callback) {
-  console.log('notifyShoot', item)
   const requestParams = {
     ConnectionId: item.id,
     Data: JSON.stringify({
@@ -766,10 +693,8 @@ function sendDelayedMessage (sqs, queueUrl, message, delay, callback) {
 
 function handleResult (err, result, callback) {
   if (err != null) {
-    console.error('an error occurred', err)
     callback(err, JSON.stringify(err))
   } else {
-    console.log(result)
     callback(null, result)
   }
 }

@@ -9,13 +9,7 @@ resource "aws_lambda_function" "lambda_connect" {
   timeout          = 10
   source_code_hash = filebase64sha256("connect.zip")
   runtime          = "nodejs18.x"
-  # vpc_config {
-  #   subnet_ids = module.vpc.private_subnets
-  #   security_group_ids = [module.vpc.default_security_group_id]
-  # }
-  tracing_config {
-    mode = "Active"
-  }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value
@@ -37,13 +31,7 @@ resource "aws_lambda_function" "lambda_disconnect" {
   timeout          = 10
   source_code_hash = filebase64sha256("disconnect.zip")
   runtime          = "nodejs18.x"
-  # vpc_config {
-  #   subnet_ids = module.vpc.private_subnets
-  #   security_group_ids = [module.vpc.default_security_group_id]
-  # }
-  tracing_config {
-    mode = "Active"
-  }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value
@@ -65,13 +53,7 @@ resource "aws_lambda_function" "lambda_default" {
   timeout          = 10
   source_code_hash = filebase64sha256("default.zip")
   runtime          = "nodejs18.x"
-  # vpc_config {
-  #   subnet_ids = module.vpc.private_subnets
-  #   security_group_ids = [module.vpc.default_security_group_id]
-  # }
-  tracing_config {
-    mode = "Active"
-  }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value
@@ -94,13 +76,7 @@ resource "aws_lambda_function" "lambda_logic" {
   timeout          = 10
   source_code_hash = filebase64sha256("logic.zip")
   runtime          = "nodejs18.x"
-  # vpc_config {
-  #   subnet_ids = module.vpc.private_subnets
-  #   security_group_ids = [module.vpc.default_security_group_id]
-  # }
-  tracing_config {
-    mode = "Active"
-  }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value

@@ -22,3 +22,7 @@ variable "mongodb_user" {
 variable "mongodb_pwd" {
   default = "Abcd1234"
 }
+
+variable "provider_region_name" {
+  default = "US_EAST_1"
+}
