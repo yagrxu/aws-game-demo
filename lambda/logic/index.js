@@ -1,7 +1,6 @@
 const async = require('async')
 var MongoClient = require('mongodb').MongoClient
-const AWSXRay = require('aws-xray-sdk')
-const AWS = AWSXRay.captureAWS(require('aws-sdk'))
+const AWS = require('aws-sdk')
 const {
   ApiGatewayManagementApiClient,
   PostToConnectionCommand
