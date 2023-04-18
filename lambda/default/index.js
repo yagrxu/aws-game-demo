@@ -4,6 +4,7 @@ var MongoClient = require('mongodb').MongoClient
 const AWSXRay = require('aws-xray-sdk')
 const AWS = AWSXRay.captureAWS(require('aws-sdk'))
 const process = require('process')
+
 var mongodbUri = process.env.MONGODB_ATLAS_URI
 const fifoQueueUrl = process.env.FIFO_QUEUE_URL
 const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
@@ -351,9 +352,14 @@ function insertRecord (db, collectionName, content, callback) {
 
 function readRecord (db, collectionName, keys, callback) {
   // Call DynamoDB to add the item to the table
+  const segment = AWSXRay.getSegment() //returns the facade segment
+  const subsegment = segment.addNewSubsegment('MongoDB')
+  let query = formQuery(keys)
   db.collection(collectionName)
-    .find(formQuery(keys))
+    .find(query)
     .toArray(function (err, result) {
+      subsegment.addMetadata('query', JSON.stringify(query))
+      subsegment.close()
       handleResult(err, result[0], callback)
     })
 }

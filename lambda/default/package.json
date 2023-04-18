@@ -4,6 +4,8 @@
   "description": "## Define Object Overlapping",
   "main": "index.js",
   "dependencies": {
-    "mongodb": "4.2"
+    "mongodb": "4.2",
+    "aws-xray-sdk":"",
+    "aws-sdk": ""
   }
 }

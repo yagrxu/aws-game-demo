@@ -1,5 +1,5 @@
 resource "aws_api_gateway_account" "demo" {
-  cloudwatch_role_arn = "${aws_iam_role.apigw_logging_role.arn}"
+  cloudwatch_role_arn = aws_iam_role.apigw_logging_role.arn
 }
 
 resource "aws_iam_role" "apigw_logging_role" {
@@ -54,9 +54,9 @@ resource "aws_iam_role_policy_attachment" "test-attach" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_attach" {
+resource "aws_iam_role_policy_attachment" "lambda_trigger_access_attachment" {
   role       = aws_iam_role.apigw_trigger_lambda_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaRole"
 }
 
 resource "aws_iam_role" "iam_for_lambda" {
