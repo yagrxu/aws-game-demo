@@ -112,23 +112,23 @@ resource "aws_lambda_function" "lambda_logic" {
 resource "aws_lambda_alias" "game_demo_connect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_connect.function_name
-  function_version = 0
+  function_version = 1
 }
 
 resource "aws_lambda_alias" "game_demo_disconnect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_disconnect.function_name
-  function_version = 0
+  function_version = 1
 }
 
 resource "aws_lambda_alias" "game_demo_default_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_default.function_name
-  function_version = 0
+  function_version = 1
 }
 
 resource "aws_lambda_alias" "game_demo_logic_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_logic.function_name
-  function_version = 0
+  function_version = 1
 }
