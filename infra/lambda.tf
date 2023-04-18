@@ -1,10 +1,10 @@
 resource "aws_lambda_function" "lambda_connect" {
-  filename         = "connect.zip"
+  filename         = "dummy.zip"
   function_name    = "game-demo-connect"
   role             = aws_iam_role.iam_for_lambda.arn
   handler          = "index.handler"
   timeout          = 10
-  source_code_hash = filebase64sha256("connect.zip")
+  source_code_hash = filebase64sha256("dummy.zip")
   runtime          = "nodejs16.x"
   publish          = true
   # vpc_config {
@@ -29,12 +29,12 @@ resource "aws_lambda_function" "lambda_connect" {
 
 
 resource "aws_lambda_function" "lambda_disconnect" {
-  filename         = "disconnect.zip"
+  filename         = "dummy.zip"
   function_name    = "game-demo-disconnect"
   role             = aws_iam_role.iam_for_lambda.arn
   handler          = "index.handler"
   timeout          = 10
-  source_code_hash = filebase64sha256("disconnect.zip")
+  source_code_hash = filebase64sha256("dummy.zip")
   runtime          = "nodejs16.x"
   publish          = true
   # vpc_config {
@@ -57,12 +57,12 @@ resource "aws_lambda_function" "lambda_disconnect" {
 }
 
 resource "aws_lambda_function" "lambda_default" {
-  filename         = "default.zip"
+  filename         = "dummy.zip"
   function_name    = "game-demo-default"
   role             = aws_iam_role.iam_for_lambda.arn
   handler          = "index.handler"
   timeout          = 10
-  source_code_hash = filebase64sha256("default.zip")
+  source_code_hash = filebase64sha256("dummy.zip")
   runtime          = "nodejs16.x"
   publish          = true
   # vpc_config {
@@ -85,12 +85,12 @@ resource "aws_lambda_function" "lambda_default" {
 }
 
 resource "aws_lambda_function" "lambda_logic" {
-  filename         = "logic.zip"
+  filename         = "dummy.zip"
   function_name    = "game-demo-logic"
   role             = aws_iam_role.iam_for_lambda.arn
   handler          = "index.handler"
   timeout          = 10
-  source_code_hash = filebase64sha256("logic.zip")
+  source_code_hash = filebase64sha256("dummy.zip")
   runtime          = "nodejs16.x"
   publish          = true
   # vpc_config {
@@ -117,22 +117,34 @@ resource "aws_lambda_alias" "game_demo_connect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_connect.function_name
   function_version = 1
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "aws_lambda_alias" "game_demo_disconnect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_disconnect.function_name
   function_version = 1
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "aws_lambda_alias" "game_demo_default_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_default.function_name
   function_version = 1
+  lifecycle {
+    ignore_changes = all
+  }
 }
 
 resource "aws_lambda_alias" "game_demo_logic_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_logic.function_name
   function_version = 1
+  lifecycle {
+    ignore_changes = all
+  }
 }
