@@ -116,7 +116,7 @@ resource "aws_lambda_function" "lambda_logic" {
 resource "aws_lambda_alias" "game_demo_connect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_connect.function_name
-  function_version = 1
+  function_version = aws_lambda_function.lambda_connect.version
   lifecycle {
     ignore_changes = all
   }
@@ -125,7 +125,7 @@ resource "aws_lambda_alias" "game_demo_connect_alias_arn" {
 resource "aws_lambda_alias" "game_demo_disconnect_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_disconnect.function_name
-  function_version = 1
+  function_version = aws_lambda_function.lambda_disconnect.version
   lifecycle {
     ignore_changes = all
   }
@@ -134,7 +134,7 @@ resource "aws_lambda_alias" "game_demo_disconnect_alias_arn" {
 resource "aws_lambda_alias" "game_demo_default_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_default.function_name
-  function_version = 1
+  function_version = aws_lambda_function.lambda_default.version
   lifecycle {
     ignore_changes = all
   }
@@ -143,7 +143,7 @@ resource "aws_lambda_alias" "game_demo_default_alias_arn" {
 resource "aws_lambda_alias" "game_demo_logic_alias_arn" {
   name             = "prd"
   function_name    = aws_lambda_function.lambda_logic.function_name
-  function_version = 1
+  function_version = aws_lambda_function.lambda_logic.version
   lifecycle {
     ignore_changes = all
   }
