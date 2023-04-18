@@ -42,9 +42,6 @@ resource "aws_iam_role" "apigw_trigger_lambda_role" {
     ]
   })
 
-  tags = {
-    tag-key = "tag-value"
-  }
 }
 
 # 
