@@ -3,7 +3,7 @@
 npm install 
 
 zip -r disconnect.zip .
-target_version=$(aws lambda update-function-code --function-name $FUNCTION_NAME	--zip-file fileb://disconnect.zip --publish | jq -r '.Version')
+target_version=$(aws lambda update-function-code --function-name $FUNCTION_NAME	--zip-file fileb://disconnect.zip --publish | jq -r '.FunctionVersion')
 alias_exists=$(aws lambda get-alias --function-name $FUNCTION_NAME --name $ALIAS_NAME 2>/dev/null)
 
 
