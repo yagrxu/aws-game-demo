@@ -62,7 +62,7 @@ resource "aws_codedeploy_app" "logic_deployment_app" {
 }
 
 resource "aws_codedeploy_deployment_group" "logic_deployment_group" {
-  app_name               = aws_codedeploy_app.disconnect_deployment_app.name
+  app_name               = aws_codedeploy_app.logic_deployment_app.name
   deployment_group_name  = "logic_deployment_group"
   service_role_arn       = aws_iam_role.codedeploy_iam_role.arn
   deployment_config_name = "CodeDeployDefault.LambdaCanary10Percent5Minutes"
