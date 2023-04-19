@@ -1,5 +1,12 @@
 version: 0.2
+<<<<<<< HEAD
 
+=======
+env:
+  parameter-store:
+    MONGODB_ATLAS_PUBLIC_KEY: '/devax-game/mongodb_public_key'
+    MONGODB_ATLAS_PRIVATE_KEY: '/devax-game/mongodb_private_key'
+>>>>>>> f946fa9 (fix)
 phases:
   install:
     runtime-versions:

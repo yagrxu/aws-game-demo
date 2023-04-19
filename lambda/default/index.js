@@ -55,7 +55,7 @@ function handleAction (event, context, callback) {
         break
     }
   } else {
-    console.log(request)
+    lambdaResponse(callback)
   }
 }
 
@@ -79,9 +79,7 @@ function handleMessages (event, callback) {
           break
       }
     } else {
-      console.log(request)
-      console.log(isNull(request))
-      console.log(isNull(request.action))
+      lambdaResponse(callback)
     }
   }
 }
@@ -404,5 +402,3 @@ function log (...args) {
   console.log(args)
 }
 
-// createRoom("12345", "yagrxu")
-// joinRoom("54321", "yagrxu")
