@@ -23,6 +23,6 @@ variable "mongodb_pwd" {
   default = "Abcd1234"
 }
 
-variable "mongodb_provider_region_name" {
+variable "provider_region_name" {
   default = "US_EAST_1"
 }

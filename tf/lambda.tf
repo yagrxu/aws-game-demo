@@ -10,9 +10,11 @@ resource "aws_lambda_function" "lambda_connect" {
   source_code_hash = filebase64sha256("dummy.zip")
   runtime          = "nodejs16.x"
   publish          = true
+
   tracing_config {
     mode = "Active"
   }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value
@@ -67,6 +69,7 @@ resource "aws_lambda_function" "lambda_default" {
   tracing_config {
     mode = "Active"
   }
+
   environment {
     variables = {
       DELAYED_QUEUE_URL       = aws_ssm_parameter.delayed_queue_url.value

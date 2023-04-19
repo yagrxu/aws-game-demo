@@ -37,11 +37,11 @@ resource "aws_sqs_queue" "delay_queue_dl" {
 resource "aws_lambda_event_source_mapping" "sqs-delay" {
   batch_size       = 1
   event_source_arn = aws_sqs_queue.delay_queue.arn
-  function_name    = aws_lambda_function.lambda_default.arn
+  function_name    = aws_lambda_alias.game_demo_default_alias_arn.arn
 }
 
 resource "aws_lambda_event_source_mapping" "sqs-fifo" {
   batch_size       = 1
   event_source_arn = aws_sqs_queue.fifo_queue.arn
-  function_name    = aws_lambda_function.lambda_logic.arn
+  function_name    = aws_lambda_alias.game_demo_logic_alias_arn.arn
 }
