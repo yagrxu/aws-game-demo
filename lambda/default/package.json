@@ -3,7 +3,17 @@
   "version": "1.0.0",
   "description": "## Define Object Overlapping",
   "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "dependencies": {
-    "mongodb": "4.2"
-  }
+    "aws-sdk": "",
+    "@aws-sdk/client-apigatewaymanagementapi": "",
+    "async": "",
+    "aws-xray-sdk":"",
+    "mongodb":"4.2"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
