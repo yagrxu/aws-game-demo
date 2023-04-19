@@ -31,7 +31,7 @@ resource "aws_apigatewayv2_integration" "connect" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_connect.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_connect_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 
 }
@@ -45,7 +45,7 @@ resource "aws_apigatewayv2_integration" "default" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_default.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_default_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
@@ -60,7 +60,7 @@ resource "aws_apigatewayv2_integration" "disconnect" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_disconnect.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_disconnect_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
