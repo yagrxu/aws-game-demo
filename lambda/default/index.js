@@ -335,17 +335,26 @@ function isNull (value) {
 }
 
 function updateRecord (db, collectionName, content, keys, callback) {
+  const segment = AWSXRay.getSegment() //returns the facade segment
+  const subsegment = segment.addNewSubsegment('MongoDB')
+  let query = formQuery(keys)
   db.collection(collectionName).updateOne(
-    formQuery(keys),
+    query,
     content,
     function (err, result) {
+      subsegment.addMetadata('query', JSON.stringify(query))
+      subsegment.close()
       handleResult(err, content, callback)
     }
   )
 }
 
 function insertRecord (db, collectionName, content, callback) {
+  const segment = AWSXRay.getSegment() //returns the facade segment
+  const subsegment = segment.addNewSubsegment('MongoDB')
   db.collection(collectionName).insertOne(content, function (err, result) {
+    subsegment.addMetadata('content', JSON.stringify(content))
+    subsegment.close()
     handleResult(err, content, callback)
   })
 }
@@ -410,6 +419,3 @@ function sendFifoMessage (sqs, queueUrl, message, callback) {
 function log (...args) {
   console.log(args)
 }
-
-// createRoom("12345", "yagrxu")
-// joinRoom("54321", "yagrxu")

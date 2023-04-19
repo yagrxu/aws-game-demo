@@ -1,7 +1,6 @@
 const async = require('async')
 var MongoClient = require('mongodb').MongoClient
-// const AWSXRay = require('aws-xray-sdk')
-// const AWS = AWSXRay.captureAWS(require('aws-sdk'))
+const AWSXRay = require('aws-xray-sdk')
 const playerTableName = process.env.PLAYER_TABLE_NAME
 const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME
 var mongodbUri = process.env.MONGODB_ATLAS_URI
@@ -87,19 +86,26 @@ function cleanup (connectionId, lambdaCallback) {
 }
 
 function deleteRecords (db, collectionName, keys, callback) {
-  db.collection(collectionName).deleteMany(
-    formQuery(keys),
-    function (err, result) {
-      handleResult(err, null, callback)
-    }
-  )
+  const segment = AWSXRay.getSegment() //returns the facade segment
+  const subsegment = segment.addNewSubsegment('MongoDB')
+  let query = formQuery(keys)
+  db.collection(collectionName).deleteMany(query, function (err, result) {
+    subsegment.addMetadata('query', JSON.stringify(query))
+    subsegment.close()
+    handleResult(err, null, callback)
+  })
 }
 
 function readRecord (db, collectionName, keys, callback) {
   // Call DynamoDB to add the item to the table
+  const segment = AWSXRay.getSegment() //returns the facade segment
+  const subsegment = segment.addNewSubsegment('MongoDB')
+  let query = formQuery(keys)
   db.collection(collectionName)
-    .find(formQuery(keys))
+    .find(query)
     .toArray(function (err, result) {
+      subsegment.addMetadata('query', JSON.stringify(query))
+      subsegment.close()
       handleResult(err, result[0], callback)
     })
 }
