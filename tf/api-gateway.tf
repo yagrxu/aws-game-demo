@@ -8,8 +8,6 @@ resource "aws_apigatewayv2_route" "ws_apigateway_route" {
   api_id    = aws_apigatewayv2_api.ws_apigateway.id
   route_key = "$default"
   target    = "integrations/${aws_apigatewayv2_integration.default.id}"
-  # model_selection_expression          = "default"
-  # route_response_selection_expression = "$default"
 }
 
 resource "aws_apigatewayv2_route" "ws_apigateway_route_connect" {
@@ -33,7 +31,7 @@ resource "aws_apigatewayv2_integration" "connect" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_connect.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_connect_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 
 }
@@ -47,7 +45,7 @@ resource "aws_apigatewayv2_integration" "default" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_default.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_default_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
@@ -62,7 +60,7 @@ resource "aws_apigatewayv2_integration" "disconnect" {
   content_handling_strategy = "CONVERT_TO_TEXT"
   description               = "Lambda demo"
   integration_method        = "POST"
-  integration_uri           = aws_lambda_function.lambda_disconnect.invoke_arn
+  integration_uri           = aws_lambda_alias.game_demo_disconnect_alias_arn.invoke_arn
   passthrough_behavior      = "WHEN_NO_MATCH"
 }
 
@@ -85,25 +83,6 @@ resource "aws_apigatewayv2_stage" "demo_stage" {
     throttling_rate_limit    = 100
   }
 }
-
-# resource "aws_apigatewayv2_route_response" "default_response" {
-#   api_id             = aws_apigatewayv2_api.ws_apigateway.id
-#   route_id           = aws_apigatewayv2_route.ws_apigateway_route.id
-#   route_response_key = "$default"
-
-# }
-
-# resource "aws_apigatewayv2_route_response" "connect_response" {
-#   api_id             = aws_apigatewayv2_api.ws_apigateway.id
-#   route_id           = aws_apigatewayv2_route.ws_apigateway_route_connect.id
-#   route_response_key = "$default"
-# }
-
-# resource "aws_apigatewayv2_route_response" "disconnect_response" {
-#   api_id             = aws_apigatewayv2_api.ws_apigateway.id
-#   route_id           = aws_apigatewayv2_route.ws_apigateway_route_disconnect.id
-#   route_response_key = "$default"
-# }
 
 resource "aws_apigatewayv2_deployment" "ws_apigateway_deployment" {
   api_id      = aws_apigatewayv2_api.ws_apigateway.id
