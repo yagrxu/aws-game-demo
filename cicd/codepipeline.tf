@@ -29,12 +29,12 @@ resource "aws_codepipeline" "infra_pipeline" {
     name = "Build"
 
     action {
-      name             = "Build"
-      category         = "Build"
-      owner            = "AWS"
-      provider         = "CodeBuild"
-      input_artifacts  = ["SourceArtifact"]
-      version          = "1"
+      name            = "Build"
+      category        = "Build"
+      owner           = "AWS"
+      provider        = "CodeBuild"
+      input_artifacts = ["SourceArtifact"]
+      version         = "1"
 
       configuration = {
         ProjectName = aws_codebuild_project.build_project.name
@@ -91,6 +91,7 @@ resource "aws_codepipeline" "connect_pipeline" {
 
 resource "aws_s3_bucket" "codepipeline_bucket" {
   bucket_prefix = "devax-gaming-codepipeline-"
+  force_destroy = true
 }
 
 data "aws_iam_policy_document" "codepipeline_assume_role" {
@@ -152,8 +153,8 @@ data "aws_iam_policy_document" "codepipeline_policy" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["*"]
+    effect    = "Allow"
+    actions   = ["*"]
     resources = ["*"]
   }
 }
