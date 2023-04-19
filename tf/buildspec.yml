@@ -1,6 +1,10 @@
 version: 0.2
 
 phases:
+  env:
+    parameter-store:
+      MONGODB_ATLAS_PUBLIC_KEY: '/devax-game/mongodb_public_key'
+      MONGODB_ATLAS_PRIVATE_KEY: '/devax-game/mongodb_private_key'
   install:
     runtime-versions:
       python: 3.7
