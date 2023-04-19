@@ -7,7 +7,7 @@ phases:
     commands:
       - tf_version=$TERRAFORM_VERSION
       - tf_state_key="gaming/demo/cannon-mosquito-server"
-      - tf_state_bucket=<BUCKET_NAME>
+      - tf_state_bucket=$(aws s3 ls --output text | awk '{print $3}' | grep tfstate-)
       - tf_state_bucket_region="ap-southeast-1"
       - AWS_DEFAULT_REGION="ap-southeast-1"
       - wget https://releases.hashicorp.com/terraform/"$TERRAFORM_VERSION"/terraform_"$TERRAFORM_VERSION"_linux_amd64.zip
