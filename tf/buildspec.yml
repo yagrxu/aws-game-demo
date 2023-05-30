@@ -17,5 +17,5 @@ phases:
       - terraform --version
       - terraform init -backend-config="bucket=${tf_state_bucket}" -backend-config="key=${tf_state_key}" -backend-config="region=${tf_state_bucket_region}"
       - terraform validate
-      - terraform plan -lock=false -input=false
-      - terraform apply --auto-approve
+      - terraform plan -lock=false -input=false -var 'deploy_type=cicd'
+      - terraform apply --auto-approve -var 'deploy_type=cicd'

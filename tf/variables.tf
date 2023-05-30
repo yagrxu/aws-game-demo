@@ -13,3 +13,7 @@ variable "player_table_name" {
 variable "game_session_table_name" {
   default = "GameSessionTable"
 }
+
+variable "deploy_type" {
+  default = "local"
+}

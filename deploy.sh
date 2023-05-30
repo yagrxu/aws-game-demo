@@ -2,7 +2,7 @@
 
 sh ./prebuild.sh
 
-export TFSTATE_KEY=gaming/demo/cannon-mosquito-server-prod
+export TFSTATE_KEY=gaming/demo/cannon-mosquito-server
 export TFSTATE_BUCKET=$(aws s3 ls --output text | awk '{print $3}' | grep tfstate-)
 export TFSTATE_REGION=us-east-1
 export AWS_DEFAULT_REGION=us-east-1
