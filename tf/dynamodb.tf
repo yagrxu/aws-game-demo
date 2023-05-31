@@ -24,5 +24,3 @@ resource "aws_dynamodb_table" "game-session-table" {
     type = "S"
   }
 }
-
-
