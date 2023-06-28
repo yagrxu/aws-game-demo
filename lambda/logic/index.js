@@ -86,6 +86,7 @@ function handleNewTargets(body) {
       function (data, callback) {
         if (data.running.S == "false") {
           callback(new Error("already stopped"), null);
+          return
         }
         console.log("update targets");
         updatedTargets = JSON.parse(data.targets.S).concat(JSON.parse(request.targets));
@@ -371,7 +372,7 @@ function startGame(body) {
               roomId: body.data.roomId.S,
             },
           }),
-          65,
+          62,
           function (err, data) {
             if (err) {
               callback(err, null);

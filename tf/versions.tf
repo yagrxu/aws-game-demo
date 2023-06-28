@@ -2,7 +2,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "4.63.0"
+      version = "5.2.0"
     }
     null = {
       source  = "hashicorp/null"
@@ -10,9 +10,9 @@ terraform {
     }
   }
   backend "s3" {
-    #   bucket = "yagr-tf-state-log"
-    #   key    = "gaming/demo/cannon-mosquito-server"
-    #   region = "us-east-1"
+      # bucket = "yagr-tf-state-log"
+      # key    = "gaming/demo/cannon-mosquito-server"
+      # region = "us-east-1"
   }
 
 }
