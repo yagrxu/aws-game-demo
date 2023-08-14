@@ -1,3 +1,8 @@
+locals {
+  targets_delayed_second = 2
+  targets_per_batch      = 5
+}
+
 resource "aws_lambda_function" "lambda_connect" {
   filename         = var.deploy_type == "local" ? "connect.zip" : "dummy.zip"
   function_name    = "game-demo-connect"
@@ -95,6 +100,8 @@ resource "aws_lambda_function" "lambda_logic" {
       PLAYER_TABLE_NAME       = aws_ssm_parameter.player_table_name.value
       GAME_SESSION_TABLE_NAME = aws_ssm_parameter.game_session_table_name.value
       DEFAULT_REGION          = aws_ssm_parameter.default_region.value
+      TARGET_DELAYED_SECONDS  = local.targets_delayed_second
+      TARGET_PER_BATCH        = local.targets_per_batch
     }
   }
 }
