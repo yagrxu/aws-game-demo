@@ -31,7 +31,32 @@ aws cloud9 create-environment-ec2 --name demo \
 
 ```
 
-### Setup Environments
+### Deploy with Terraform
+
+1. Create S3 Bucket
+
+  ```shell
+  aws s3 mb s3://my-tfstate-`aws sts get-caller-identity --query "Account" --output text` --region $CURRENT_REGION
+  ```
+
+2. Run Terraform
+
+```shell
+sh ./deploy.sh $CURRENT_REGION $CURRENT_REGION
+```
+
+**Note!** If you encounter problem during terraform init. Change the content below in `deploy.sh`
+
+```shell
+# add "-reconfigure" at the end of terraform init command
+terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${TFSTATE_REGION}" -reconfigure
+```
+
+### Clean Up
+
+```shell
+sh ./destroy.sh $CURRENT_REGION $CURRENT_REGION
+```
 
 ## License
 

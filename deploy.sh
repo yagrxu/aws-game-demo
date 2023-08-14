@@ -21,6 +21,6 @@ export AWS_REGION=$AWS_DEFAULT_REGION
 
 cd tf
 # in case backend changed, please use '-reconfigure' parameter
-terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${TFSTATE_REGION}" -reconfigure
+terraform init -backend-config="bucket=${TFSTATE_BUCKET}" -backend-config="key=${TFSTATE_KEY}" -backend-config="region=${TFSTATE_REGION}"
 
 terraform apply --auto-approve
