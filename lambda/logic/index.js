@@ -345,7 +345,7 @@ function startGame(body) {
                             roomId: body.data.roomId.S,
                         },
                     }),
-                    62,
+                    60,
                     function (err, data) {
                         if (err) {
                             callback(err, null);
@@ -553,17 +553,6 @@ function updateShoot(data, callback) {
             callback(null, "done");
         }
     });
-}
-
-function enhanceIds(ids, client) {
-    items = [];
-    for (let i = 0; i < ids.length; i++) {
-        items.push({
-            id: ids[i],
-            client: client,
-        });
-    }
-    return items;
 }
 
 function enhanceShootInfo(ids, client, data) {

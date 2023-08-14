@@ -1,6 +1,6 @@
 locals {
   targets_delayed_second = 2
-  targets_per_batch      = 5
+  targets_per_batch      = 10
 }
 
 resource "aws_lambda_function" "lambda_connect" {
