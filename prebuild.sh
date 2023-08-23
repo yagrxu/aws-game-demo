@@ -18,3 +18,6 @@ zip -r ../../tf/default.zip .
 cd ../logic
 npm install
 zip -r ../../tf/logic.zip .
+
+cd ../authorizer
+zip -r ../../tf/authorizer.zip .

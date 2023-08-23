@@ -11,9 +11,21 @@ resource "aws_apigatewayv2_route" "ws_apigateway_route" {
 }
 
 resource "aws_apigatewayv2_route" "ws_apigateway_route_connect" {
-  api_id    = aws_apigatewayv2_api.ws_apigateway.id
-  route_key = "$connect"
-  target    = "integrations/${aws_apigatewayv2_integration.connect.id}"
+  api_id             = aws_apigatewayv2_api.ws_apigateway.id
+  route_key          = "$connect"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.ws_apigateway_authorizer.id
+  target             = "integrations/${aws_apigatewayv2_integration.connect.id}"
+}
+
+resource "aws_apigatewayv2_authorizer" "ws_apigateway_authorizer" {
+  api_id          = aws_apigatewayv2_api.ws_apigateway.id
+  authorizer_type = "REQUEST"
+  authorizer_uri  = aws_lambda_alias.game_demo_authorizer_alias_arn.invoke_arn
+  # aws_lambda_function.lambda_authorizer.invoke_arn
+  authorizer_credentials_arn = "arn:aws:iam::613477150601:role/apigw_lambda_trigger_role"
+  identity_sources           = ["route.request.header.Auth"]
+  name                       = "game-connect-authorizer"
 }
 
 resource "aws_apigatewayv2_route" "ws_apigateway_route_disconnect" {
