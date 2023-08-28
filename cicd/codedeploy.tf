@@ -22,12 +22,29 @@ resource "aws_iam_role_policy_attachment" "codedeploy_iam_role_policy_attachment
 }
 
 
+resource "aws_codedeploy_app" "authorizer_deployment_app" {
+  compute_platform = "Lambda"
+  name             = "authorizer-app"
+}
+
+resource "aws_codedeploy_deployment_group" "authorizer_deployment_group" {
+  app_name               = aws_codedeploy_app.authorizer_deployment_app.name
+  deployment_group_name  = "authorizer_deployment_group"
+  service_role_arn       = aws_iam_role.codedeploy_iam_role.arn
+  deployment_config_name = "CodeDeployDefault.LambdaCanary10Percent5Minutes"
+
+  deployment_style {
+    deployment_option = "WITH_TRAFFIC_CONTROL"
+    deployment_type   = "BLUE_GREEN"
+  }
+}
+
 resource "aws_codedeploy_app" "connect_deployment_app" {
   compute_platform = "Lambda"
   name             = "connect-app"
 }
 
-resource "aws_codedeploy_deployment_group" "codedeploy_deployment_group" {
+resource "aws_codedeploy_deployment_group" "connect_deployment_group" {
   app_name               = aws_codedeploy_app.connect_deployment_app.name
   deployment_group_name  = "connect_deployment_group"
   service_role_arn       = aws_iam_role.codedeploy_iam_role.arn

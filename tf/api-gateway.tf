@@ -24,7 +24,7 @@ resource "aws_apigatewayv2_authorizer" "ws_apigateway_authorizer" {
   authorizer_uri  = aws_lambda_alias.game_demo_authorizer_alias_arn.invoke_arn
   # aws_lambda_function.lambda_authorizer.invoke_arn
   authorizer_credentials_arn = aws_iam_role.apigw_trigger_lambda_role.arn
-  identity_sources           = ["route.request.header.Auth"]
+  identity_sources           = ["request.querystring.Auth"]
   name                       = "game-connect-authorizer"
 }
 
