@@ -2,6 +2,7 @@ const async = require("async");
 const AWSXRay = require("aws-xray-sdk");
 const AWS = AWSXRay.captureAWS(require("aws-sdk"));
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require("@aws-sdk/client-apigatewaymanagementapi");
+const { SFNClient, StartExecutionCommand, StopExecutionCommand } = require("@aws-sdk/client-sfn");
 
 const laserWidth = process.env.LaserWidth || 0.6;
 const mosWidth = process.env.MosquetoWidth || 1.0;
@@ -12,11 +13,12 @@ const targetsDelayedSecond = process.env.TARGET_DELAYED_SECONDS;
 const targetsPerBatch = process.env.TARGET_PER_BATCH;
 // const fifoQueueGroupId = process.env.FIFO_QUEUE_GROUP_ID
 const playerTableName = process.env.PLAYER_TABLE_NAME;
-``;
 const gameSessionTableName = process.env.GAME_SESSION_TABLE_NAME;
 const defaultRegion = process.env.DEFAULT_REGION;
+const stateMachineArn = process.env.STATE_MACHINE_ARN;
 const sqs = initSqs();
 const ddb = initDynamoDB();
+const sfn = initSFN();
 
 exports.handler = function (event) {
     console.log(event);
@@ -62,7 +64,6 @@ function handleNewTargets(body) {
     console.log("body", body);
     let request = body.data;
     updatedTargets = null;
-    //body.data.targets = { S: JSON.stringify() }
     async.waterfall(
         [
             function (callback) {
@@ -101,26 +102,6 @@ function handleNewTargets(body) {
                         callback(null, data);
                     }
                 });
-            },
-            function (data, callback) {
-                sendDelayedNewTargets(
-                    {
-                        targets: JSON.stringify(randomTargets()),
-                        domain: request.domain,
-                        stage: request.stage,
-                        ids: request.ids,
-                        roomId: request.roomId,
-                    },
-                    function (err, data) {
-                        if (err) {
-                            console.log(err);
-                            callback(err, null);
-                        } else {
-                            console.log(data);
-                            callback(null, data);
-                        }
-                    }
-                );
             },
             function (data, callback) {
                 sendTargetUpdate(request, function (err, data) {
@@ -297,6 +278,7 @@ function startGame(body) {
     body.data.running = {
         S: "true",
     };
+    request = body.data;
     async.waterfall(
         [
             function (callback) {
@@ -312,23 +294,16 @@ function startGame(body) {
                 });
             },
             function (data, callback) {
-                sendDelayedNewTargets(
+                startStateMachine(
+                    stateMachineArn,
                     {
-                        targets: JSON.stringify(randomTargets(2)),
+                        targets: JSON.stringify(randomTargets()),
                         domain: body.domain,
                         stage: body.stage,
                         ids: body.data.connectionIds.S,
                         roomId: body.data.roomId.S,
                     },
-                    function (err, data) {
-                        if (err) {
-                            console.log(err);
-                            callback(err, null);
-                        } else {
-                            console.log(data);
-                            callback(null, data);
-                        }
-                    }
+                    callback
                 );
             },
             function (data, callback) {
@@ -422,26 +397,15 @@ function stopGame(body) {
                 });
             },
         ],
+        function (data, callback) {
+            stopStateMachine(stateMachineArn, callback);
+        },
         function (err, result) {
             console.log(err, result);
             if (!err) {
                 console.log("create ok");
             }
         }
-    );
-}
-
-function sendDelayedNewTargets(data, callback) {
-    console.log("send delayed new targets", data);
-    sendDelayedMessage(
-        sqs,
-        delayedQueueUrl,
-        JSON.stringify({
-            action: "newtargets",
-            data: data,
-        }),
-        targetsDelayedSecond,
-        callback
     );
 }
 
@@ -682,6 +646,10 @@ function initSqs() {
     return new AWS.SQS({ apiVersion: "2012-11-05" });
 }
 
+function initSFN() {
+    return new SFNClient({ region: defaultRegion });
+}
+
 function initDynamoDB() {
     // Set the region
     AWS.config.update({ region: defaultRegion });
@@ -699,10 +667,6 @@ function updateRecord(ddb, tableName, content, callback) {
     ddb.putItem(params, function (err, data) {
         callback(err, data);
     });
-}
-
-function isNull(value) {
-    return value == null;
 }
 
 function readRecord(ddb, tableName, keys, callback) {
@@ -725,6 +689,27 @@ function sendDelayedMessage(sqs, queueUrl, message, delay, callback) {
     };
 
     sqs.sendMessage(params, function (err, data) {
+        callback(err, data);
+    });
+}
+
+function startStateMachine(stateMachineArn, data, callback) {
+    var params = {
+        stateMachineArn: stateMachineArn,
+        input: JSON.stringify(data),
+    };
+    const command = new StartExecutionCommand(params);
+    sfn.send(command, (err, data) => {
+        callback(err, data);
+    });
+}
+
+function stopStateMachine(stateMachineArn, callback) {
+    var params = {
+        stateMachineArn: stateMachineArn,
+    };
+    const command = new StopExecutionCommand(params);
+    sfn.send(command, (err, data) => {
         callback(err, data);
     });
 }

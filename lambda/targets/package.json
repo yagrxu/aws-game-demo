@@ -1,5 +1,5 @@
 {
-    "name": "disconnect",
+    "name": "targets",
     "version": "1.0.0",
     "description": "## Define Object Overlapping",
     "main": "index.js",
@@ -8,8 +8,6 @@
     },
     "dependencies": {
         "aws-sdk": "",
-        "@aws-sdk/client-apigatewaymanagementapi": "",
-        "@aws-sdk/client-sfn": "",
         "async": "",
         "aws-xray-sdk": ""
     },

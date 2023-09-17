@@ -39,3 +39,10 @@ resource "aws_ssm_parameter" "default_region" {
   value     = data.aws_region.current.name
   overwrite = true
 }
+
+resource "aws_ssm_parameter" "statemachine_arn" {
+  name      = "/devax-game/statemachine_arn"
+  type      = "String"
+  value     = aws_sfn_state_machine.sfn_state_machine.arn
+  overwrite = true
+}

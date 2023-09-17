@@ -27,3 +27,8 @@ resource "aws_codecommit_repository" "infra" {
   default_branch  = "master"
 }
 
+resource "aws_codecommit_repository" "targets" {
+  repository_name = "targets"
+  default_branch  = "master"
+}
+

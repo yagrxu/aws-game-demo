@@ -106,3 +106,20 @@ resource "aws_codedeploy_deployment_group" "default_deployment_group" {
     deployment_type   = "BLUE_GREEN"
   }
 }
+
+resource "aws_codedeploy_app" "targets_deployment_app" {
+  compute_platform = "Lambda"
+  name             = "targets-app"
+}
+
+resource "aws_codedeploy_deployment_group" "targets_deployment_group" {
+  app_name               = aws_codedeploy_app.targets_deployment_app.name
+  deployment_group_name  = "targets_deployment_group"
+  service_role_arn       = aws_iam_role.codedeploy_iam_role.arn
+  deployment_config_name = "CodeDeployDefault.LambdaCanary10Percent5Minutes"
+
+  deployment_style {
+    deployment_option = "WITH_TRAFFIC_CONTROL"
+    deployment_type   = "BLUE_GREEN"
+  }
+}

@@ -128,6 +128,12 @@ resource "aws_iam_policy" "lambda_policy" {
             "Resource": "*"
         },
         {
+            "Sid": "SFN",
+            "Effect": "Allow",
+            "Action": "states:*",
+            "Resource": "*"
+        },
+        {
             "Sid": "EXEC",
             "Effect": "Allow",
             "Action": "execute-api:ManageConnections",

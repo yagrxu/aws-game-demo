@@ -19,5 +19,9 @@ cd ../logic
 npm install
 zip -r ../../tf/logic.zip .
 
+cd ../targets
+npm install
+zip -r ../../tf/targets.zip .
+
 cd ../authorizer
 zip -r ../../tf/authorizer.zip .
