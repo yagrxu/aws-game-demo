@@ -17,7 +17,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
       "Parameters": {
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST",
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST",
         "Payload.$": "$"
       },
       "Retry": [
@@ -46,7 +46,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST"
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST"
       },
       "Retry": [
         {
@@ -74,7 +74,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST"
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST"
       },
       "Retry": [
         {
@@ -102,7 +102,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST"
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST"
       },
       "Retry": [
         {
@@ -130,7 +130,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST"
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST"
       },
       "Retry": [
         {
@@ -158,7 +158,7 @@ resource "aws_sfn_state_machine" "sfn_state_machine" {
       "OutputPath": "$.Payload",
       "Parameters": {
         "Payload.$": "$",
-        "FunctionName": "arn:aws:lambda:us-east-1:613477150601:function:game-demo-targets:$LATEST"
+        "FunctionName": "arn:aws:lambda:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:function:game-demo-targets:$LATEST"
       },
       "Retry": [
         {
