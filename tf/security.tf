@@ -89,49 +89,47 @@ resource "aws_iam_policy" "lambda_policy" {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "WriteLogStreamsAndGroups",
+            "Sid": "ObservabilityPolicies",
             "Effect": "Allow",
             "Action": [
+                "xray:UpdateSamplingRule",
+                "xray:DeleteSamplingRule",
+                "xray:PutTelemetryRecords",
+                "xray:Link",
+                "xray:DeleteGroup",
+                "xray:CreateGroup",
+                "logs:CreateLogGroup",
+                "logs:PutLogEvents",
+                "xray:PutTraceSegments",
                 "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "xray:DeleteResourcePolicy",
+                "xray:UpdateGroup",
+                "xray:CreateSamplingRule",
+                "xray:PutResourcePolicy"
             ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CreateLogGroup",
-            "Effect": "Allow",
-            "Action": "logs:CreateLogGroup",
-            "Resource": "*"
-        },
-        {
-            "Sid": "VPC",
-            "Effect": "Allow",
-            "Action": ["ec2:CreateNetworkInterface", "ec2:DescribeNetworkInterfaces", "ec2:DeleteNetworkInterface"],
-            "Resource": "*"
-        },
-        {
-            "Sid": "XRAY",
-            "Effect": "Allow",
-            "Action": "xray:*",
             "Resource": "*"
         },
         {
             "Sid": "SQS",
             "Effect": "Allow",
             "Action": "sqs:*",
-            "Resource": "*"
+            "Resource": ["${aws_sqs_queue.fifo_queue.arn}", "${aws_sqs_queue.delay_queue.arn}"]
         },
         {
             "Sid": "DDB",
             "Effect": "Allow",
             "Action": "dynamodb:*",
-            "Resource": "*"
+            "Resource": ["${aws_dynamodb_table.player-table.arn}", "${aws_dynamodb_table.game-session-table.arn}"]
         },
         {
             "Sid": "SFN",
             "Effect": "Allow",
-            "Action": "states:*",
-            "Resource": "*"
+            "Action": [
+              "states:StartExecution",
+              "states:StopExecution"
+            ],
+            "Resource": [
+              "${aws_sfn_state_machine.sfn_state_machine.arn}", "arn:aws:states:*:${data.aws_caller_identity.current.account_id}:execution:*:*"]
         },
         {
             "Sid": "EXEC",
